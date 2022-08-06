@@ -59,9 +59,10 @@ void SWConfig::load() {
 	FileDesc *cfile;
 	char *buf, *data;
 	SWBuf line;
-	ConfigEntMap cursect;
-	SWBuf sectname;
+	ConfigEntMap curSect;
+	SWBuf sectName;
 	bool first = true;
+	SWBuf commentLines;
 	
 	getSections().erase(getSections().begin(), getSections().end());
 	
@@ -83,29 +84,47 @@ void SWConfig::load() {
 				buf = new char [ line.length() + 1 ];
 				strcpy(buf, line.c_str());
 				if (*strstrip(buf) == '[') {
-					if (!first)
-						getSections().insert(SectionMap::value_type(sectname, cursect));
+					if (!first) {
+						getSections().insert(SectionMap::value_type(sectName, curSect));
+					}
 					else first = false;
 					
-					cursect.erase(cursect.begin(), cursect.end());
+					curSect.erase(curSect.begin(), curSect.end());
 
 					strtok(buf, "]");
-					sectname = buf+1;
+					sectName = buf+1;
+					if (commentLines.size()) {
+						getSections()["_ConfComments"][SWBuf("Section.") + sectName] = commentLines;
+						commentLines = "";
+					}
 				}
 				else {
 					strtok(buf, "=");
 					if ((*buf) && (*buf != '=')) {
-						if ((data = strtok(NULL, "")))
-							cursect.insert(ConfigEntMap::value_type(buf, strstrip(data)));
-						else cursect.insert(ConfigEntMap::value_type(buf, ""));
+						if ((data = strtok(NULL, ""))) {
+							curSect.insert(ConfigEntMap::value_type(buf, strstrip(data)));
+						}
+						else curSect.insert(ConfigEntMap::value_type(buf, ""));
+						if (commentLines.size()) {
+							getSections()["_ConfComments"][SWBuf("Section.") + sectName + ".Entry." + buf] = commentLines;
+							commentLines = "";
+						}
+					}
+					else {
+						if (commentLines.size() && !commentLines.endsWith("\n")) commentLines += "\n";
+						commentLines += line;
 					}
 				}
 				delete [] buf;
 			}
+			else {
+				if (commentLines.size() && !commentLines.endsWith("\n")) commentLines += "\n";
+				commentLines += line;
+			}
 			goodLine = FileMgr::getLine(cfile, line);
 		}
 		if (!first)
-			getSections().insert(SectionMap::value_type(sectname, cursect));
+			getSections().insert(SectionMap::value_type(sectName, curSect));
 
 		FileMgr::getSystemFileMgr()->close(cfile);
 	}
@@ -120,18 +139,40 @@ void SWConfig::save() const {
 	SWBuf buf;
 	SectionMap::const_iterator sit;
 	ConfigEntMap::const_iterator entry;
-	SWBuf sectname;
+	SectionMap::const_iterator commentSection = getSections().find("_ConfComments");
+	ConfigEntMap::const_iterator comment;
+	SWBuf sectName;
 	
 	cfile = FileMgr::getSystemFileMgr()->open(getFileName().c_str(), FileMgr::RDWR|FileMgr::CREAT|FileMgr::TRUNC);
 	if (cfile->getFd() > 0) {
 		
 		for (sit = getSections().begin(); sit != getSections().end(); ++sit) {
-			buf =  "\n[";
+			buf =  "";
+			sectName = (*sit).first;
+			if (sectName == "_ConfComments") continue;
+			if (commentSection != getSections().end()) {
+				comment = (*commentSection).second.find(SWBuf("Section.") + sectName);
+				if (comment != (*commentSection).second.end()) {
+					if (!(*comment).second.startsWith("\n")) buf +=  SWBuf("\n");
+					buf +=  (*comment).second;
+				}
+			}
+			if (!buf.endsWith("\n")) buf += "\n";
+			buf += "[";
 			buf += (*sit).first.c_str();
 			buf += "]\n";
 			cfile->write(buf.c_str(), buf.length());
 			for (entry = (*sit).second.begin(); entry != (*sit).second.end(); ++entry) {
-				buf = (*entry).first.c_str();
+				SWBuf entryKey = (*entry).first.c_str();
+				buf =  "";
+				if (commentSection != getSections().end()) {
+					comment = (*commentSection).second.find(SWBuf("Section.") + sectName + ".Entry." + entryKey);
+					if (comment != (*commentSection).second.end()) {
+						buf += (*comment).second;
+						if (!buf.endsWith("\n")) buf += "\n";
+					}
+				}
+				buf += (*entry).first.c_str();
 				buf += "=";
 				buf += (*entry).second.c_str();
 				buf += "\n";

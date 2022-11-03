@@ -752,39 +752,35 @@ void SWMgr::loadConfigDir(const char *ipath, bool skipCache)
 	SWBuf newModFile;
 	newModFile = basePath + "modules-conf.cache";
 	skipCache = skipCache || !FileMgr::existsFile(newModFile.c_str());
+
+	if (skipCache) {
+		// assure any cache file is removed
+		FileMgr::removeFile(newModFile.c_str());
+	}
+
 	SWConfig *pathConfig = new SWConfig(newModFile);
 
-	if (!skipCache) {
-		if (config) {
-			config->augment(*pathConfig);
-			delete pathConfig;
-		}
-		else	config = myconfig = pathConfig;
-		return;
-	}
+	if (skipCache) {
+		std::vector<DirEntry> dirList = FileMgr::getDirList(ipath);
+		for (unsigned int i = 0; i < dirList.size(); ++i) {
+			//check whether it ends with .conf, if it doesn't skip it!
+			if (!dirList[i].name.endsWith(".conf")) {
+				continue;
+			}
 
-	if (!config) config = myconfig = pathConfig;
-
-	std::vector<DirEntry> dirList = FileMgr::getDirList(ipath);
-	for (unsigned int i = 0; i < dirList.size(); ++i) {
-		//check whether it ends with .conf, if it doesn't skip it!
-		if (!dirList[i].name.endsWith(".conf")) {
-			continue;
+			newModFile = basePath + dirList[i].name;
+			SWConfig tmpConfig(newModFile);
+			pathConfig->augment(tmpConfig);
 		}
 
-		newModFile = basePath + dirList[i].name;
-		SWConfig tmpConfig(newModFile);
-		config->augment(tmpConfig);
+		pathConfig->save();
 	}
 
-	pathConfig->save();
-
-	// if we're not handing off our pathConfig to be managed by our object
-	// we need to clean up
-	if (pathConfig != myconfig) {
+	if (config) {
+		config->augment(*pathConfig);
 		delete pathConfig;
 	}
-
+	else	config = myconfig = pathConfig;
 }
 
 

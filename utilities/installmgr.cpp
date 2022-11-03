@@ -206,9 +206,12 @@ void createBasicConfig(bool enableRemote, bool addCrossWire, bool unverifiedPeer
 	remove(confPath.c_str());
 
 	InstallSource is("FTP");
+
+	// Add CrossWire repo as a starting point
 	is.caption = "CrossWire";
 	is.source = "ftp.crosswire.org";
 	is.directory = "/pub/sword/raw";
+	is.uid = "20081216195754";
 
 	SWConfig config(confPath.c_str());
 	config["General"]["PassiveFTP"] = "true";

@@ -193,7 +193,7 @@ public:
 	static int copyDir(const char *srcDir, const char *destDir);
 	static int removeDir(const char *targetDir);
 	static int removeFile(const char *fName);
-	static char getLine(FileDesc *fDesc, SWBuf &line);
+	static char getLine(FileDesc *fDesc, SWBuf &line, bool strip = true);
 
 	/**
 	 * Determines where SWORD looks for the user's home folder.  This is

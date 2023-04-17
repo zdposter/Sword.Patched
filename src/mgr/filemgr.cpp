@@ -524,7 +524,7 @@ int FileMgr::removeFile(const char *fName) {
 }
 
 
-char FileMgr::getLine(FileDesc *fDesc, SWBuf &line) {
+char FileMgr::getLine(FileDesc *fDesc, SWBuf &line, bool strip) {
 	int len = 0;
 	bool more = true;
 	char chunk[255];
@@ -548,8 +548,9 @@ char FileMgr::getLine(FileDesc *fDesc, SWBuf &line) {
 		// clean up any preceding white space if we're at the beginning of line
 		if (!line.length()) {
 			for (;start < len; start++) {
-				if ((chunk[start] != 13) && (chunk[start] != ' ') && (chunk[start] != '\t'))
+				if (chunk[start] != 10 && chunk[start] != 13 && (!strip || (chunk[start] != ' ' && chunk[start] != '\t'))) {
 					break;
+				}
 			}
 		}
 
@@ -568,7 +569,7 @@ char FileMgr::getLine(FileDesc *fDesc, SWBuf &line) {
 		// clean up any trailing junk on line if we're at the end
 		if (!more) {
 			for (; end > start; end--) {
-				if ((chunk[end] != 10) && (chunk[end] != 13) && (chunk[end] != ' ') && (chunk[end] != '\t')) {
+				if (chunk[end] != 10 && chunk[end] != 13 && (!strip || (chunk[end] != ' ' && chunk[end] != '\t'))) {
 					if (chunk[end] == '\\') {
 						more = true;
 						end--;

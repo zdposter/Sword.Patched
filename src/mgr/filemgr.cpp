@@ -548,7 +548,7 @@ char FileMgr::getLine(FileDesc *fDesc, SWBuf &line, bool strip) {
 		// clean up any preceding white space if we're at the beginning of line
 		if (!line.length()) {
 			for (;start < len; start++) {
-				if (chunk[start] != 10 && chunk[start] != 13 && (!strip || (chunk[start] != ' ' && chunk[start] != '\t'))) {
+				if (/*chunk[start] != 10 && */chunk[start] != 13 && (!strip || (chunk[start] != ' ' && chunk[start] != '\t'))) {
 					break;
 				}
 			}

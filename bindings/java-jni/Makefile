@@ -1,10 +1,8 @@
 all:
 	cp ../corba/orbitcpp/webmgr.hpp jni/
 	mkdir -p classes
-	javac -d classes src/org/crosswire/android/sword/*.java
-	javah -d jni -classpath classes -jni org.crosswire.android.sword.SWMgr
-	javah -d jni -classpath classes -jni org.crosswire.android.sword.SWModule
-	javah -d jni -classpath classes -jni org.crosswire.android.sword.InstallMgr
+	# build all classes and headers
+	javac -h jni -d classes src/org/crosswire/android/sword/*.java
 	javap -s -classpath classes/ org.crosswire.android.sword.SWMgr > SWMgr.txt
 	javap -s -classpath classes/ org.crosswire.android.sword.SWMgr.ModInfo > ModInfo.txt
 	javap -s -classpath classes/ org.crosswire.android.sword.SWModule > SWModule.txt
@@ -23,4 +21,4 @@ all:
 
 
 clean:
-	rm -rf classes jni/org_crosswire_android_sword_*.h *.txt
+	rm -rf jni/webmgr.hpp classes jni/org_crosswire_android_sword_*.h *.txt

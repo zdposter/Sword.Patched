@@ -435,6 +435,8 @@ char ZipCompress::unZip(const char *sourceZipPath, const char *destPath) {
 				return -4;
 			}
 
+			if (fileName.startsWith(PATH_DELIMETER)) fileName << 1;
+			fileName = destRoot + PATH_DELIMETER + fileName;
 			// write out one zip entry to destination
 			fileMgr->createParent(fileName);
 			FileDesc *out = fileMgr->open(fileName, FileMgr::CREAT|FileMgr::TRUNC|FileMgr::RDWR);

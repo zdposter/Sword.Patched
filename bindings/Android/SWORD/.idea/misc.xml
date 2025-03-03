@@ -1,9 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="ProjectRootManager" version="2" languageLevel="JDK_17" default="true" project-jdk-name="jbr-17" project-jdk-type="JavaSDK">
     <output url="file://$PROJECT_DIR$/build/classes" />
   </component>
   <component name="ProjectType">
     <option name="id" value="Android" />
+  </component>
+  <component name="SvnBranchConfigurationManager">
+    <option name="myConfigurationMap">
+      <map>
+        <entry key="$PROJECT_DIR$">
+          <value>
+            <SvnBranchConfiguration>
+              <option name="branchUrls">
+                <list>
+                  <option value="https://crosswire.org/svn/sword/branches" />
+                  <option value="https://crosswire.org/svn/sword/tags" />
+                </list>
+              </option>
+              <option name="trunkUrl" value="https://crosswire.org/svn/sword/trunk" />
+            </SvnBranchConfiguration>
+          </value>
+        </entry>
+        <entry key="$PROJECT_DIR$/../../../include">
+          <value>
+            <SvnBranchConfiguration>
+              <option name="branchUrls">
+                <list>
+                  <option value="https://crosswire.org/svn/sword/branches" />
+                  <option value="https://crosswire.org/svn/sword/tags" />
+                </list>
+              </option>
+              <option name="trunkUrl" value="https://crosswire.org/svn/sword/trunk" />
+            </SvnBranchConfiguration>
+          </value>
+        </entry>
+      </map>
+    </option>
   </component>
   <component name="masterDetails">
     <states>

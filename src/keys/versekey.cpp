@@ -1747,6 +1747,12 @@ void VerseKey::checkBounds() {
 
 	long i = getIndex();
 
+	// assert we're sane
+	if (i < 0) {
+		error = KEYERR_OUTOFBOUNDS;
+		return;
+	}
+
 	initBounds();
 	if (i > upperBound) {
 		setIndex(upperBound);

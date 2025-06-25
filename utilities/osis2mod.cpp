@@ -33,6 +33,9 @@
 #include <vector>
 #include <iostream>
 #include <fstream>
+#include <string>
+#include <algorithm>
+#include <cctype>
 
 #include <utilstr.h>
 #include <swmgr.h>
@@ -42,6 +45,7 @@
 #include <utilxml.h>
 #include <listkey.h>
 #include <versekey.h>
+#include <versificationmgr.h>
 #include <swversion.h>
 
 #include <ztext.h>
@@ -116,6 +120,83 @@ std::vector<ListKey> linkedVerses;
 
 static bool inCanonicalOSISBook = true; // osisID is for a book that is not in Sword's canon
 static bool normalize           = true; // Whether to normalize UTF-8 to NFC
+
+// Safe case-insensitive comparison for SWBuf
+static bool ci_equals(const SWBuf &a, const SWBuf &b) {
+	if (a.length() != b.length()) return false;
+	for (size_t i = 0; i < a.length(); ++i) {
+		if (std::tolower(static_cast<unsigned char>(a[i])) !=
+		    std::tolower(static_cast<unsigned char>(b[i]))) {
+			return false;
+		}
+	}
+	return true;
+}
+
+// Safe case-insensitive prefix comparison for SWBuf
+static bool ci_starts_with(const SWBuf &full, const SWBuf &prefix) {
+	if (prefix.length() > full.length()) return false;
+	for (size_t i = 0; i < prefix.length(); ++i) {
+		if (tolower(static_cast<unsigned char>(full[i])) != tolower(static_cast<unsigned char>(prefix[i]))) {
+			return false;
+		}
+	}
+	return true;
+}
+
+/**
+ * Resolves an abbreviation or partial name against a list of candidate strings.
+ *
+ * The matching strategy is:
+ *   1. Case-sensitive exact match: returns immediately if a single exact match is found.
+ *   2. Case-insensitive exact match: uses UTF-8 safe toUpper() and returns immediately on match.
+ *   3. Case-insensitive prefix match: returns all matching candidates that begin with the input.
+ *
+ * This function does not assume anything about the semantic meaning of the entries —
+ * it can be used for versification systems, module names, etc.
+ *
+ * @param input The user-provided input string (abbreviation or full name).
+ * @param candidates The list of valid full names to resolve against.
+ * @return A StringList of matching entries (0 = no match, 1 = exact match, >1 = ambiguous).
+ */
+static StringList resolve_abbreviation(const SWBuf &input, const StringList &candidates) {
+	StringList matches;
+
+	// 1. Case-sensitive exact match
+	for (const SWBuf &candidate : candidates) {
+		if (input == candidate) {
+			matches.push_back(candidate);
+			return matches;
+		}
+	}
+
+	// Convert input to uppercase for case-insensitive comparisons
+	SWBuf inputUpper = input;
+	inputUpper.toUpper();
+
+	// 2. Case-insensitive exact match
+	for (const SWBuf &candidate : candidates) {
+		SWBuf candidateUpper = candidate;
+		candidateUpper.toUpper();
+
+		if (inputUpper == candidateUpper) {
+			matches.push_back(candidate);
+			return matches;
+		}
+	}
+
+	// 3. Case-insensitive prefix match
+	for (const SWBuf &candidate : candidates) {
+		SWBuf candidateUpper = candidate;
+		candidateUpper.toUpper();
+
+		if (candidateUpper.startsWith(inputUpper)) {
+			matches.push_back(candidate);
+		}
+	}
+
+	return matches;
+}
 
 bool isOSISAbbrev(const char *buf) {
 	VersificationMgr *vmgr = VersificationMgr::getSystemVersificationMgr();
@@ -1386,6 +1467,7 @@ void usage(const char *app, const char *error = 0, const bool verboseHelp = fals
 		fprintf(stderr, "\t\t\t\t (2 bytes to store size equal 65535 characters)\n");
 	}
 	fprintf(stderr, "  -v <v11n>\t\t specify a versification scheme to use (default is KJV)\n");
+	fprintf(stderr, "\t\t\t\t Note: This is case insensitive and allows unique prefixes, e.g. cal for Calvin\n");
 	fprintf(stderr, "\t\t\t\t Note: The following are valid values for v11n:");
 
 	VersificationMgr *vmgr = VersificationMgr::getSystemVersificationMgr();
@@ -1933,8 +2015,41 @@ int main(int argc, char **argv) {
 			else usage(*argv, "-c requires <cipher_key>");
 		}
 		else if (!strcmp(argv[i], "-v")) {
-			if (i+1 < argc) v11n = argv[++i];
-			else usage(*argv, "-v requires <v11n>");
+			if (i + 1 >= argc) {
+				usage(*argv, "-v requires <v11n>");
+			}
+
+			const char *arg = argv[++i];
+			SWBuf v11nInput = arg;
+
+			VersificationMgr *vmgr = VersificationMgr::getSystemVersificationMgr();
+			const StringList &av11ns = vmgr->getVersificationSystems();
+			StringList matches = resolve_abbreviation(v11nInput, av11ns);
+
+			if (matches.empty()) {
+				SWBuf error = "-v ";
+				error += v11nInput;
+				error += " is unknown";
+				usage(*argv, error);
+			}
+
+			if (matches.size() > 1) {
+				SWBuf error = "-v ";
+				error += v11nInput;
+				error += " is ambiguous, matching ";
+				bool first = true;
+				for (const auto &v : matches) {
+					if (!first) {
+						error += ", ";
+					}
+					error += v;
+					first = false;
+				}
+				usage(*argv, error);
+			}
+
+			v11n = matches.front();  // single unambiguous match
+			cout << "INFO(V11N): Using the " << v11n << " versification." << endl;
 		}
 		else if (!strcmp(argv[i], "-s")) {
 			if (i+1 < argc) {

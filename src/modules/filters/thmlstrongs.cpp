@@ -60,7 +60,7 @@ char ThMLStrongs::processText(SWBuf &text, const SWKey *key, const SWModule *mod
 	bool lastspace = false;
 	int word = 1;
 	char val[128];
-	char wordstr[11];
+	char wordstr[12];
 	char *valto;
 	char *ch;
 	unsigned int textStart = 0, textEnd = 0;

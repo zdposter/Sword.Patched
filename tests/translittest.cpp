@@ -49,7 +49,7 @@ void uprintf(const icu::UnicodeString &str) {
     buf[actualLen] = 0;
     //printf("%s", buf);
     std::cout << buf;
-    delete buf;
+    delete [] buf;
 }
 
 

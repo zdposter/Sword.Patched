@@ -308,11 +308,11 @@ else
 fi
 
 if test x$with_cxx11regex = xyes; then
-	AM_CXXFLAGS="$AM_CXXFLAGS -DUSECXX11REGEX -std=c++11"
+	AM_CXXFLAGS="$AM_CXXFLAGS -DUSECXX11REGEX"
 fi
 
 if test x$with_cxx11time = xyes; then
-	AM_CXXFLAGS="$AM_CXXFLAGS -DUSECXX11TIME -std=c++11"
+	AM_CXXFLAGS="$AM_CXXFLAGS -DUSECXX11TIME"
 fi
 
 if test x$disable_logdebug = xyes; then

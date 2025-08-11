@@ -677,7 +677,8 @@ void writeEntry(SWBuf &text, bool force = false) {
 	// so use the SWORD reference instead
 	if (currentVerse.getBook()) {
 		strcpy(keyOsisID, currentVerse.getOSISRef());
-	} else {
+	}
+	else {
 		strcpy(keyOsisID, currentVerse.getText());
 	}
 
@@ -705,7 +706,8 @@ void writeEntry(SWBuf &text, bool force = false) {
 			// otherwise output it as a module heading
 			if (testmt == 0 || currentVerse.getBook() == 0) {
 				activeVerseText = revision + activeVerseText;
-			} else {
+			}
+			else {
 				// save off the current verse
 				VerseKey t;
 				t.setVersificationSystem(v11n);
@@ -1634,7 +1636,8 @@ XMLTag transformBSP(XMLTag t) {
 			t.setEmpty(true);
 			if (tagName == "verse" || tagName == "chapter" || (tagName == "div" && typeAttr == "book")) {
 				t.setAttribute("sID", t.getAttribute("osisID"));
-			} else {
+			}
+			else {
 				sprintf(buf, "gen%d", sID++);
 				t.setAttribute("sID", buf);
 			}
@@ -1766,7 +1769,7 @@ void usage(const char *app, const char *error = 0, const bool verboseHelp = fals
 	fprintf(stderr, "  -b <2|3|4>\t\t compression block size (default: 4)\n");
 	fprintf(stderr, "\t\t\t\t 2 - verse; 3 - chapter; 4 - book\n");
 	fprintf(stderr, "  -l <1-9>\t\t compression level (default varies by compression type)\n");
-	fprintf(stderr, "  -c <cipher_key>\t encipher module using supplied key\n");
+	fprintf(stderr, "  -c <cipher_key>\t encipher a compressed module using supplied key\n");
 	fprintf(stderr, "\t\t\t\t (default no enciphering)\n");
 
 #ifdef _ICU_
@@ -1784,6 +1787,7 @@ void usage(const char *app, const char *error = 0, const bool verboseHelp = fals
 	if (verboseHelp) {
 		fprintf(stderr, "\t\t\t\t Note: useful for commentaries with very large\n");
 		fprintf(stderr, "\t\t\t\t entries in uncompressed modules\n");
+		fprintf(stderr, "\t\t\t\t or in Bibles with large introductions\n");
 		fprintf(stderr, "\t\t\t\t (2 bytes to store size equal 65535 characters)\n");
 	}
 	fprintf(stderr, "  -v <v11n>\t\t specify a versification scheme to use (default is KJV)\n");
@@ -1998,20 +2002,23 @@ void handleQuoteEntity(SWBuf& entityToken, const char* currentOsisID, SWBuf& msg
 					  << std::endl;
 			}
 			entityToken = "'";
-		} else if (attrQuoteChar == '"') {
+		}
+		else if (attrQuoteChar == '"') {
 			if (debug & DEBUG_PARSE) {
 				std::cout << msgPrefix
 					  << "&apos; unnecessary in double-quoted attributes. Replacing with '."
 					  << std::endl;
 			}
 			entityToken = "'";
-		} else if (attrQuoteChar == '\'') {
+		}
+		else if (attrQuoteChar == '\'') {
 			if (debug & DEBUG_PARSE) {
 				std::cout << msgPrefix
 					  << "&apos; only needed in single-quoted attributes. Consider double quotes." 
 					  << std::endl;
 			}
-		} else {
+		}
+		else {
 			if (debug & DEBUG_PARSE) {
 				std::cout << identifyMsg("ERROR", "PARSE", currentOsisID)
 					  << "Invalid attrQuoteChar: "
@@ -2019,7 +2026,8 @@ void handleQuoteEntity(SWBuf& entityToken, const char* currentOsisID, SWBuf& msg
 					  << std::endl;
 			}
 		}
-	} else if (entityToken == "&quot;") {
+	}
+	else if (entityToken == "&quot;") {
 		if (!inattribute) {
 			if (debug & DEBUG_PARSE) {
 				std::cout << msgPrefix
@@ -2027,20 +2035,23 @@ void handleQuoteEntity(SWBuf& entityToken, const char* currentOsisID, SWBuf& msg
 					  << std::endl;
 			}
 			entityToken = "\"";
-		} else if (attrQuoteChar == '\'') {
+		}
+		else if (attrQuoteChar == '\'') {
 			if (debug & DEBUG_PARSE) {
 				std::cout << msgPrefix
 					  << "&quot; unnecessary in single-quoted attributes. Replacing with \"." 
 					  << std::endl;
 			}
 			entityToken = "\"";
-		} else if (attrQuoteChar == '"') {
+		}
+		else if (attrQuoteChar == '"') {
 			if (debug & DEBUG_PARSE) {
 				std::cout << msgPrefix
 			  		  << "&quot; only needed in double-quoted attributes. Consider single quotes."
 					  << std::endl;
 			}
-		} else {
+		}
+		else {
 			if (debug & DEBUG_PARSE) {
 				std::cout << identifyMsg("ERROR", "PARSE", currentOsisID)
 					  << "Invalid attrQuoteChar: " 
@@ -2076,16 +2087,19 @@ void convertNumericEntityToUTF8(SWBuf& entityToken, long codepoint, SWBuf& msgPr
 	if (codepoint <= 0x7F) {
 		entityToken.setSize(1);
 		entityToken[0] = static_cast<char>(codepoint);
-	} else if (codepoint <= 0x7FF) {
+	}
+	else if (codepoint <= 0x7FF) {
 		entityToken.setSize(2);
 		entityToken[0] = 0xC0 | (codepoint >> 6);
 		entityToken[1] = 0x80 | (codepoint & 0x3F);
-	} else if (codepoint <= 0xFFFF) {
+	}
+	else if (codepoint <= 0xFFFF) {
 		entityToken.setSize(3);
 		entityToken[0] = 0xE0 | (codepoint >> 12);
 		entityToken[1] = 0x80 | ((codepoint >> 6) & 0x3F);
 		entityToken[2] = 0x80 | (codepoint & 0x3F);
-	} else {
+	}
+	else {
 		entityToken.setSize(4);
 		entityToken[0] = 0xF0 | (codepoint >> 18);
 		entityToken[1] = 0x80 | ((codepoint >> 12) & 0x3F);
@@ -2157,7 +2171,8 @@ bool handleEntity(char curChar, bool& inentity, bool& inWhitespace, EntityType& 
 					  << entityToken
 					  << std::endl;
 			}
-		} else if (curChar == ';') {
+		}
+		else if (curChar == ';') {
 			inentity = false;
 		}
 		if (entitytype != EntityType::ERR) {
@@ -2168,9 +2183,11 @@ bool handleEntity(char curChar, bool& inentity, bool& inWhitespace, EntityType& 
 			case EntityType::START:
 				if (curChar == '#') {
 					entitytype = EntityType::NUM_HASH;
-				} else if (std::isalnum(curChar)) {
+				}
+				else if (std::isalnum(curChar)) {
 					entitytype = EntityType::CHAR;
-				} else {
+				}
+				else {
 					inentity = false;
 					entitytype = EntityType::ERR;
 				}
@@ -2178,9 +2195,11 @@ bool handleEntity(char curChar, bool& inentity, bool& inWhitespace, EntityType& 
 			case EntityType::NUM_HASH:
 				if (curChar == 'x' || curChar == 'X') {
 					entitytype = EntityType::NUM_HEX;
-				} else if (std::isdigit(curChar)) {
+				}
+				else if (std::isdigit(curChar)) {
 					entitytype = EntityType::NUM_DEC;
-				} else {
+				}
+				else {
 					inentity = false;
 					entitytype = EntityType::ERR;
 				}
@@ -2288,7 +2307,8 @@ bool handleEntity(char curChar, bool& inentity, bool& inWhitespace, EntityType& 
 						// Non-special codepoints go to UTF-8 conversion
 						break;
 					}
-				} else {
+				}
+				else {
 					if (debug & DEBUG_PARSE) {
 						std::cout << msgPrefix
 							  << "Invalid numeric entity, codepoint out of range or malformed: " 
@@ -2328,10 +2348,12 @@ bool handleEntity(char curChar, bool& inentity, bool& inWhitespace, EntityType& 
 							  << std::endl;
 					}
 					(intoken ? token : text).append(entityToken);
-				} else if (entityToken == "&apos;" || entityToken == "&quot;") {
+				}
+				else if (entityToken == "&apos;" || entityToken == "&quot;") {
 					handleQuoteEntity(entityToken, currentOsisID, msgPrefix, inattribute, attrQuoteChar);
 					(intoken ? token : text).append(entityToken);
-				} else {
+				}
+				else {
 					(intoken ? token : text).append(entityToken);
 				}
 				break;
@@ -2462,7 +2484,8 @@ void processOSIS(std::istream& infile) {
 				if (!handleToken(text, t)) {
 					text.append(t);
 				}
-			} else {
+			}
+			else {
 				std::cout << identifyMsg("WARNING", "PARSE", currentOsisID)
 					  << "malformed token: "
 					  << token
@@ -2473,7 +2496,8 @@ void processOSIS(std::istream& infile) {
 
 		if (intoken) {
 			token.append((char) curChar);
-		} else {
+		}
+		else {
 			switch (curChar) {
 			case '>' :
 				std::cout << identifyMsg("WARNING", "PARSE", currentOsisID)
@@ -2818,9 +2842,14 @@ int main(int argc, char **argv) {
 	SWFilter *cipherFilter = 0;
 
 	if (cipherKey.length()) {
-		fprintf(stderr, "Adding cipher filter with phrase: %s\n", cipherKey.c_str() );
-		cipherFilter = new CipherFilter(cipherKey.c_str());
-		module->addRawFilter(cipherFilter);
+		if (compressor) {
+			fprintf(stderr, "Adding cipher filter with phrase: %s\n", cipherKey.c_str() );
+			cipherFilter = new CipherFilter(cipherKey.c_str());
+			module->addRawFilter(cipherFilter);
+		}
+		else {
+			fprintf(stderr, "Cipher key ignored. Only compressed modules can be enciphered.\n");
+		}
 	}
 
 	if (!module->isWritable()) {

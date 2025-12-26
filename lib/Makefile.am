@@ -25,11 +25,13 @@ AM_CPPFLAGS += $(ICUDEF)
 
 libsword_la_LDFLAGS = -release $(VERSION)
 
-#include ../src/keys/Makefile.am
-#include ../src/utilfuns/Makefile.am
-#include ../src/mgr/Makefile.am
-#include ../src/frontend/Makefile.am
-#include ../src/modules/Makefile.am
+libsword_la_DEPENDENCIES = $(libsword_la_SOURCES)
+
+include ../src/keys/Makefile.am
+include ../src/utilfuns/Makefile.am
+include ../src/mgr/Makefile.am
+include ../src/frontend/Makefile.am
+include ../src/modules/Makefile.am
 #include ../bindings/Makefile.am
 #bindingsdir = $(top_srcdir)/bindings
 #libsword_la_SOURCES += $(bindingsdir)/flatapi.cpp

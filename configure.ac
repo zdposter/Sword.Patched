@@ -5,7 +5,15 @@
 # Version change: Change line 9 only !
 # Change it immediately after a release
 
-define([svnversion], esyscmd([sh -c "svnversion -n"]))dnl
+define([svnversion], esyscmd([
+    SVN_VERSION=$(svnversion -n 2>/dev/null || true)
+    if test -z "$SVN_VERSION" || test "$SVN_VERSION" = "Unversioned directory"; then
+        GIT_VERSION=$(git describe --tags --always 2>/dev/null || echo "Unknown-version")
+        echo "$GIT_VERSION"
+    else
+        echo "$SVN_VERSION"
+    fi
+]))dnl
 AC_INIT(sword, 1.9.0.svnversion, sword-bugs@crosswire.org, sword, http://crosswire.org/sword)
 AC_CONFIG_SRCDIR(sword.bmp)
 AC_PREREQ(2.52)
@@ -380,7 +388,7 @@ fi
 if test x$with_xapian = xyes; then
 	AM_CFLAGS="$AM_CFLAGS -DUSEXAPIAN"
 	AM_CXXFLAGS="$AM_CXXFLAGS -DUSEXAPIAN"
-	if test x$with_clucene = xno; then
+	if test "x$with_clucene" = xno; then
 		with_clucene="no"
 	else
 		with_clucene="$with_clucene; but using XAPIAN instead"

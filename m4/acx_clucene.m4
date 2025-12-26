@@ -1,17 +1,16 @@
 dnl CLucene detection m4
 AC_DEFUN([ACX_CLUCENE], [
 AC_LANG_SAVE
-AC_LANG(C++)
+AC_LANG([C++])
 
 
 # Ask user for path to clucene-core stuff:.
-AC_ARG_WITH(clucene,
-	AC_HELP_STRING([ --with-clucene=<path>],
-		[prefix of CLucene-Core installation. e.g. /usr/local or /usr]),,)
+AC_ARG_WITH([clucene],
+	[  --with-clucene=<path>   prefix of CLucene-Core installation. e.g. /usr/local or /usr],,
+)
 
 AC_MSG_CHECKING([how to include clucene 0.x])
-if test "x$with_clucene" = "xno"; then
-	AC_MSG_RESULT(excluding support)
+if test "x$with_clucene" = "xno"; then	AC_MSG_RESULT(excluding support)
 else
 #try some default locations
 if test -z "$with_clucene" || test "x$with_clucene" = "xyes"; then

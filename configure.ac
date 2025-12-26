@@ -12,12 +12,12 @@ AC_PREREQ(2.52)
 AC_REVISION($Revision: 1.45 $)
 
 AC_CANONICAL_TARGET
-AM_INIT_AUTOMAKE
+#AM_INIT_AUTOMAKE
 
 # this doesn't work
-#AM_INIT_AUTOMAKE([subdir-objects])
+AM_INIT_AUTOMAKE([subdir-objects])
 
-AM_CONFIG_HEADER(include/config.h)
+AC_CONFIG_HEADERS([include/config.h])
 
 AC_CONFIG_MACRO_DIR([m4])
 
@@ -34,12 +34,11 @@ esac
 # ---------------------------------------------------------------------
 CFLAGS=" $CFLAGS"
 CXXFLAGS=" $CXXFLAGS"
-AC_LANG(C++)
+AC_LANG([C++])
 AC_PROG_CC
 AC_PROG_CXX
 AC_PROG_INSTALL
-AC_LIBTOOL_WIN32_DLL
-AC_PROG_LIBTOOL
+LT_INIT
 
 AC_C_BIGENDIAN
 
@@ -51,59 +50,59 @@ fi
 # ---------------------------------------------------------------------
 # With options
 # ---------------------------------------------------------------------
-AC_ARG_WITH(zlib,
-	AC_HELP_STRING([--with-zlib],[allow zlib compressed modules (default=yes)]),,with_zlib=yes)
-AC_ARG_WITH(bzip2,
-	AC_HELP_STRING([--with-bzip2],[allow bzip2 compressed modules (default=no)]),,with_bzip2=no)
-AC_ARG_WITH(xz,
-	AC_HELP_STRING([--with-xz],[allow xz compressed modules (default=no)]),,with_xz=no)
-AC_ARG_WITH(icu,
-	AC_HELP_STRING([--with-icu],[use ICU for unicode (default=yes)]),,with_icu=yes)
-AC_ARG_WITH(icusword,
-	AC_HELP_STRING([--with-icusword],[use custom SWORD ICU (default=no)]),,with_icusword=no)
-AC_ARG_WITH(conf,
-	AC_HELP_STRING([--with-conf],[install a new sword.conf (default=yes)]),,with_conf=yes)
-AC_ARG_WITH(cxx11regex,
-	AC_HELP_STRING([--with-cxx11regex],[build regex support using c++11 regex (default=no)]),,with_cxx11regex=no)
-AC_ARG_WITH(cxx11time,
-	AC_HELP_STRING([--with-cxx11time],[build time support using c++11 time (default=no)]),,with_cxx11time=no)
-AC_ARG_WITH(curl,
-	AC_HELP_STRING([--with-curl],[build install manager support using libcurl (default=yes)]),,with_curl=yes)
-AC_ARG_WITH(curl_sftp,
-	AC_HELP_STRING([--with-curl_sftp],[build install manager support using libcurl+sftp (requires --with-curl, default=yes)]),,with_curl_sftp=yes)
+AC_ARG_WITH([zlib],
+	[  --with-zlib             allow zlib compressed modules (default=yes)],, [with_zlib=yes])
+AC_ARG_WITH([bzip2],
+	[  --with-bzip2            allow bzip2 compressed modules (default=no)],, [with_bzip2=no])
+AC_ARG_WITH([xz],
+	[  --with-xz               allow xz compressed modules (default=no)],, [with_xz=no])
+AC_ARG_WITH([icu],
+	[  --with-icu              use ICU for unicode (default=yes)],, [with_icu=yes])
+AC_ARG_WITH([icusword],
+	[  --with-icusword         use custom SWORD ICU (default=no)],, [with_icusword=no])
+AC_ARG_WITH([conf],
+	[  --with-conf             install a new sword.conf (default=yes)],, [with_conf=yes])
+AC_ARG_WITH([cxx11regex],
+	[  --with-cxx11regex       build regex support using c++11 regex (default=no)],, [with_cxx11regex=no])
+AC_ARG_WITH([cxx11time],
+	[  --with-cxx11time        build time support using c++11 time (default=no)],, [with_cxx11time=no])
+AC_ARG_WITH([curl],
+	[  --with-curl             build install manager support using libcurl (default=yes)],, [with_curl=yes])
+AC_ARG_WITH([curl_sftp],
+	[  --with-curl_sftp        build install manager support using libcurl+sftp (requires --with-curl, default=yes)],, [with_curl_sftp=yes])
 #AC_ARG_WITH(lucene,
 #	AC_HELP_STRING([--with-lucene],[include lucene support for searching (default=no)]),,with_lucene=no)
 AC_ARG_WITH([internalregex],
-	AS_HELP_STRING([--with-internalregex], [Compile using SWORDs internal copy of regex]))
+	[  --with-internalregex    Compile using SWORDs internal copy of regex])
 AC_ARG_WITH([icuregex],
-	AS_HELP_STRING([--with-icuregex], [use ICU regex engine]))
-AC_ARG_WITH(xapian,
-	AC_HELP_STRING([--with-xapian],[use xapian search engine (default=yes)]),,with_xapian=yes)
+	[  --with-icuregex         use ICU regex engine])
+AC_ARG_WITH([xapian],
+	[  --with-xapian           use xapian search engine (default=yes)],, [with_xapian=yes])
 AC_ARG_WITH([gapi],
-	AS_HELP_STRING([--with-gapi], [build SWORD with support for google apis]),,with_gapi=no)
+	[  --with-gapi             build SWORD with support for google apis],, [with_gapi=no])
 
 
 # ---------------------------------------------------------------------
 # Enable options
 # ---------------------------------------------------------------------
-AC_ARG_ENABLE(debug,
-	AC_HELP_STRING([--enable-debug],[build debug library (default=no)]),,enable_debug=no)
-AC_ARG_ENABLE(warnings,
-	AC_HELP_STRING([--enable-warnings],[build with compiler warnings as errors (default=no)]),,enable_warnings=no)
-AC_ARG_ENABLE(profile,
-	AC_HELP_STRING([--enable-profile],[allow profiling (default=no)]),,enable_profile=no)
-AC_ARG_ENABLE(profilefn,
-	AC_HELP_STRING([--enable-profilefn],[allow functioncheck profiling (default=no)]),,enable_profilefn=no)
-AC_ARG_ENABLE(tests,
-	AC_HELP_STRING([--enable-tests],[build test programs (default=yes)]),,enable_tests=yes)
-AC_ARG_ENABLE(utilities,
-	AC_HELP_STRING([--enable-utilities],[build utilities (default=yes)]),,enable_utilities=yes)
-AC_ARG_ENABLE(examples,
-	AC_HELP_STRING([--enable-examples],[build examples (default=no)]),,enable_examples=no)
-AC_ARG_ENABLE(logdebug,
-	AC_HELP_STRING([--disable-logd],[strip log debug messages from code for optimization (default=no)]),disable_logdebug=yes,disable_logdebug=no)
-AC_ARG_ENABLE(loginfo,
-	AC_HELP_STRING([--disable-logi],[strip log information messages from code for optimization (default=no)]),disable_loginfo=yes,disable_loginfo=no)
+AC_ARG_ENABLE([debug],
+	[  --enable-debug          build debug library (default=no)],, [enable_debug=no])
+AC_ARG_ENABLE([warnings],
+	[  --enable-warnings       build with compiler warnings as errors (default=no)],, [enable_warnings=no])
+AC_ARG_ENABLE([profile],
+	[  --enable-profile        allow profiling (default=no)],, [enable_profile=no])
+AC_ARG_ENABLE([profilefn],
+	[  --enable-profilefn      allow functioncheck profiling (default=no)],, [enable_profilefn=no])
+AC_ARG_ENABLE([tests],
+	[  --enable-tests          build test programs (default=yes)],, [enable_tests=yes])
+AC_ARG_ENABLE([utilities],
+	[  --enable-utilities      build utilities (default=yes)],, [enable_utilities=yes])
+AC_ARG_ENABLE([examples],
+	[  --enable-examples       build examples (default=no)],, [enable_examples=no])
+AC_ARG_ENABLE([logdebug],
+	[  --disable-logd          strip log debug messages from code for optimization (default=no)], [disable_logdebug=yes], [disable_logdebug=no])
+AC_ARG_ENABLE([loginfo],
+	[  --disable-logi          strip log information messages from code for optimization (default=no)], [disable_loginfo=yes], [disable_loginfo=no])
 AM_MAINTAINER_MODE
 
 # ---------------------------------------------------------------------
@@ -349,7 +348,7 @@ fi
 fi
 
 if test x$with_xapian = xyes; then
-	AC_LANG_CPLUSPLUS
+	AC_LANG([C++])
 	AC_CHECK_LIB(xapian,main,,with_xapian="no")
 else
 	with_xapian="no"

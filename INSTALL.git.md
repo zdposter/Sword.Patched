@@ -36,3 +36,13 @@ sudo make install_config
 sudo installmgr --allow-internet-access-and-risk-tracing-and-jail-or-martyrdom -sc -r CrossWire -ri CrossWire KJV
 /usr/bin/diatheke -b KJV -f plain -k Jn 11:35
 ```
+
+### Build with CMake
+
+```sh
+sudo apt-get install cmake ninja-build
+cmake -G Ninja -Bbuild.cmake -DCMAKE_BUILD_TYPE=release -DCMAKE_INSTALL_PREFIX=/usr
+cmake --build build.cmake 2>&1 | tee cmake_build.log
+sudo cmake --build build.cmake --target install
+sudo ldconfig
+```

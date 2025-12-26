@@ -196,12 +196,12 @@ AS_IF([test "x$have_systemregex" = "xyes"],
        AS_IF([test "x$with_internalregex" = "xno"],
       	[AC_MSG_ERROR([System regex forced but not found])],
 	[AC_MSG_NOTICE([Using internal regex.h])])])
- 
+
 
 # ---------------------------------------------------------------------
 # Find CppUnit
 # ---------------------------------------------------------------------
-# Locate CppUnit (minimum version 1.8.0) for testing.  
+# Locate CppUnit (minimum version 1.8.0) for testing.
 AM_PATH_CPPUNIT(1.8.0)
 
 # You can set up an automake conditional and use it to conditionally
@@ -433,7 +433,7 @@ m4_foreach(WARN_CHECK, [-Wno-address, -Wno-nonnull-compare],
 
 echo "WARNINGS_OFF: $WARNINGS_OFF"
 AM_CXXFLAGS="$AM_CXXFLAGS $WARNINGS_OFF"
- 
+
 
 AC_SUBST(SWORD_VERSION_NUM)
 AC_SUBST(SWORD_VERSION_STR)

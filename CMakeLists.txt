@@ -9,15 +9,17 @@
 # This file started on 18 January 2010 by Gregory Hellings
 # It is ceded to The SWORD Library developers and CrossWire under the terms
 # of their own GPLv2 license and all copyright is transferred to them for
-# all posterity and eternity, wherever such transfer is possible.  Where it is
+# all posterity and eternity, wherever such transfer is possible. Where it is
 # not, then this file is released under the GPLv2 by myself.
+
 CMAKE_MINIMUM_REQUIRED(VERSION 3.10.0)
+PROJECT(libsword CXX C)
+SET(SWORD_VERSION 1.9.0)
+
 CMAKE_POLICY(SET CMP0010 NEW)
 include(FindSubversion)
 Subversion_WC_INFO(${CMAKE_CURRENT_SOURCE_DIR} MYSVN IGNORE_SVN_FAILURE)
 
-PROJECT(libsword CXX C)
-SET(SWORD_VERSION 1.9.0)
 if(DEFINED MYSVN_WC_REVISION)
 	SET(SWORD_VERSION ${SWORD_VERSION}.${MYSVN_WC_REVISION})
 endif(DEFINED MYSVN_WC_REVISION)
@@ -52,18 +54,17 @@ ENDIF(MSVC)
 # This will look for various libraries that libsword builds against.  There is no REQUIRED
 # attribute added here, since all of the libraries here are not, in actuality, required.
 #
-MESSAGE(STATUS "\n-- SEARCHING FOR SYTEM PACKAGES")
+MESSAGE(STATUS "\n-- SEARCHING FOR SYSTEM PACKAGES")
 # Find our packages
-FIND_PACKAGE(BZIP2 QUIET)
-FIND_PACKAGE(XZ QUIET)
-FIND_PACKAGE(ICU QUIET
-                COMPONENTS data i18n io uc)
-FIND_PACKAGE(CURL QUIET)
-FIND_PACKAGE(CLucene QUIET)
-FIND_PACKAGE(ZLIB QUIET)
-FIND_PACKAGE(PkgConfig QUIET)
-FIND_PACKAGE(Regex QUIET)
+FIND_PACKAGE(BZIP2)
+FIND_PACKAGE(XZ)
+FIND_PACKAGE(ICU COMPONENTS data i18n io uc)
+FIND_PACKAGE(CURL)
+FIND_PACKAGE(CLucene)
 FIND_PACKAGE(Xapian)
+FIND_PACKAGE(ZLIB)
+FIND_PACKAGE(PkgConfig)
+FIND_PACKAGE(Regex)
 
 IF(XAPIAN_FOUND)
 message(STATUS "Found Xapian: ${XAPIAN_LIBRARIES}")
@@ -302,9 +303,11 @@ INCLUDE("${CMAKE_CURRENT_SOURCE_DIR}/cmake/install.cmake")
 # Bindings are good, right?
 #
 
-MESSAGE(STATUS "${SWORD_SWIG_BINDINGS}")
 IF(SWORD_SWIG_BINDINGS)
+	MESSAGE(STATUS "Build SWIG Bindings: yes")
 	ADD_SUBDIRECTORY("${CMAKE_CURRENT_SOURCE_DIR}/bindings")
+ELSE(SWORD_SWIG_BINDINGS)
+	MESSAGE(STATUS "Build SWIG Bindings: no")
 ENDIF(SWORD_SWIG_BINDINGS)
 
 ##############################################################################################
@@ -313,7 +316,11 @@ ENDIF(SWORD_SWIG_BINDINGS)
 
 IF(NOT SWORD_BUILD_UTILS STREQUAL "No")
 	ADD_SUBDIRECTORY("${CMAKE_CURRENT_SOURCE_DIR}/utilities")
+	MESSAGE(STATUS "Build utilities: Yes")
+ELSE(NOT SWORD_BUILD_UTILS STREQUAL "No")
+	MESSAGE(STATUS "Build utilities: No")
 ENDIF(NOT SWORD_BUILD_UTILS STREQUAL "No")
+
 
 ##############################################################################################
 # Demos are also hawt
@@ -322,7 +329,10 @@ ENDIF(NOT SWORD_BUILD_UTILS STREQUAL "No")
 IF(SWORD_BUILD_EXAMPLES STREQUAL "Yes")
 	ADD_SUBDIRECTORY("${CMAKE_CURRENT_SOURCE_DIR}/examples/cmdline")
 	ADD_SUBDIRECTORY("${CMAKE_CURRENT_SOURCE_DIR}/examples/tasks")
+ELSE(SWORD_BUILD_EXAMPLES)
+	SET(SWORD_BUILD_EXAMPLE "No")
 ENDIF(SWORD_BUILD_EXAMPLES STREQUAL "Yes")
+MESSAGE(STATUS "Build example: ${SWORD_BUILD_EXAMPLE}")
 
 ##############################################################################################
 # Tests, however, are not
@@ -330,4 +340,7 @@ ENDIF(SWORD_BUILD_EXAMPLES STREQUAL "Yes")
 IF(SWORD_BUILD_TESTS)
 	INCLUDE(CTest)
 	ADD_SUBDIRECTORY("${CMAKE_CURRENT_SOURCE_DIR}/tests")
+ELSE(SWORD_BUILD_TESTS)
+	SET(SWORD_BUILD_TESTS "No")
 ENDIF(SWORD_BUILD_TESTS)
+MESSAGE(STATUS "Build tests: ${SWORD_BUILD_TESTS}")

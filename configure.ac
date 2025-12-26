@@ -230,24 +230,36 @@ fi
 
 
 # ---------------------------------------------------------------------
-# Find ICU tools
+# Find ICU using pkg-config
 # ---------------------------------------------------------------------
 ICU_LIBS=
 ICU_IOLIBS=
 if test x$with_icu = xyes; then
-	AC_PATH_PROG(ICU_CONFIG, icu-config, no)
-	if test "$ICU_CONFIG" != "no" ; then
-	   ICU_LIBS=`$ICU_CONFIG --ldflags`
-	   ICU_IOLIBS=`$ICU_CONFIG --ldflags-icuio`
-	   with_icu=yes
-	   LIBS="$LIBS $ICU_LIBS $ICU_IOLIBS"
-	   AM_CXXFLAGS="$AM_CXXFLAGS -D_ICU_"
-	   AM_CFLAGS="$AM_CFLAGS -D_ICU_"
-	else
-	   echo "*** The icu-config script installed by icu could not be found"
-	   echo "*** compiling without ICU support"
-	   with_icu=no
-	fi
+    # Check for pkg-config
+    PKG_PROG_PKG_CONFIG
+
+    # Check for ICU libraries
+    PKG_CHECK_MODULES(ICU, icu-uc, [
+        ICU_LIBS="$ICU_LIBS"
+        with_icu=yes
+        AM_CXXFLAGS="$AM_CXXFLAGS $ICU_CFLAGS -D_ICU_"
+        AM_CFLAGS="$AM_CFLAGS $ICU_CFLAGS -D_ICU_"
+        LIBS="$LIBS $ICU_LIBS"
+
+        # Try to find icu-io separately if needed
+        PKG_CHECK_MODULES(ICUIO, icu-io, [
+            ICU_IOLIBS="$ICUIO_LIBS"
+            LIBS="$LIBS $ICUIO_LIBS"
+        ], [
+            # icu-io not found, but that might be OK
+            ICU_IOLIBS=""
+        ])
+    ], [
+        echo "*** ICU libraries not found via pkg-config"
+        echo "*** You may need to install ICU development packages"
+        echo "*** compiling without ICU support"
+        with_icu=no
+    ])
 fi
 
 

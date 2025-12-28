@@ -2,7 +2,7 @@
 # Initialisation
 # ---------------------------------------------------------------------
 
-# Version change: Change line 9 only !
+# Version change: Change line 17 only !
 # Change it immediately after a release
 
 define([svnversion], esyscmd([
@@ -43,12 +43,52 @@ esac
 CFLAGS=" $CFLAGS"
 CXXFLAGS=" $CXXFLAGS"
 AC_LANG([C++])
-AC_PROG_CC
-AC_PROG_CXX
+AC_PROG_CXX([g++ clang++])
 AC_PROG_INSTALL
 LT_INIT
 
 AC_C_BIGENDIAN
+
+# ----------------------------------------
+# C++ related options
+# ----------------------------------------
+
+# Detect Clang compiler
+AC_MSG_CHECKING([if compiling with clang])
+AC_COMPILE_IFELSE(
+[AC_LANG_PROGRAM([], [[
+#ifndef __clang__
+       not clang
+#endif
+]])],
+[CLANG=yes], [CLANG=no])
+AC_MSG_RESULT([$CLANG])
+
+dnl **********************
+dnl Turn on C++17 or newer
+dnl **********************
+
+CPLUSPLUS=
+AX_CHECK_COMPILE_FLAG([-std=c++17], [CPLUSPLUS=17], [], [$WERROR])
+if test -z "$CPLUSPLUS"; then
+  AC_MSG_WARN([Your compiler does not have the necessary C++17 support! Build can failed.])
+fi
+# Set C++17 support based on platform/compiler
+case "${host_os}" in
+  cygwin*)
+    CXXFLAGS="$CXXFLAGS -std=gnu++$CPLUSPLUS"
+    ;;
+  *-darwin* | *-macos10*)
+    CXXFLAGS="$CXXFLAGS -std=c++$CPLUSPLUS"
+    if test "x$CLANG" = "xyes"; then
+      LDFLAGS="$LDFLAGS -stdlib=libc++"
+    fi
+    ;;
+  *)
+    # default
+    CXXFLAGS="$CXXFLAGS -std=c++$CPLUSPLUS"
+    ;;
+esac
 
 PKG_CHECK_MODULES([CLUCENE2], [libclucene-core >= 2.3],,true)
 if test "x$CLUCENE2_LIBS" = x; then
@@ -569,5 +609,3 @@ echo     "     CXX11-REGEX:          $with_cxx11regex"
 echo     "     CXX11-TIME:           $with_cxx11time"
 echo     "     XAPIAN-CORE:          $with_xapian"
 echo     "     GAPI:                 $with_gapi"
-
-

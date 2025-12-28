@@ -32,7 +32,7 @@ AC_CONFIG_MACRO_DIR([m4])
 case $host_os in
      mingw*)
 	   # both lines necessary to convince gcc to build dll
-	   LIBS="$LIBS -no-undefined";
+	   # LIBS="$LIBS -no-undefined";
 	   export lt_cv_deplibs_check_method=pass_all;
 	   ;;
 esac
@@ -230,6 +230,15 @@ else
   use_pkgconfig=no
 fi
 
+# Set PKG_CONFIG_PATH for macOS with Homebrew unless it is already set.
+AC_CHECK_PROG([have_brew], brew, true, false)
+if $have_brew; then
+  brew_prefix=$(brew --prefix)
+  if test -z "$PKG_CONFIG_PATH"; then
+    PKG_CONFIG_PATH=$brew_prefix/opt/icu4c/lib/pkgconfig:$brew_prefix/opt/libarchive/lib/pkgconfig
+    export PKG_CONFIG_PATH
+  fi
+fi
 
 # ---------------------------------------------------------------------
 # Find XZ / lzma using pkg-config

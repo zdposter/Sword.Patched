@@ -590,6 +590,31 @@ char FileMgr::getLine(FileDesc *fDesc, SWBuf &line, bool strip) {
 }
 
 
+SWBuf FileMgr::loadFile(FileDesc *fDesc, bool strip, bool skipCommentLines) {
+	SWBuf line;
+	SWBuf bufferedFile;
+	bool first = true;
+
+	bool goodLine = FileMgr::getLine(fDesc, line, strip);
+	// clean UTF encoding tags at start of file
+	while (goodLine && line.length() && 
+			((((unsigned char)line[0]) == 0xEF) ||
+			 (((unsigned char)line[0]) == 0xBB) ||
+			 (((unsigned char)line[0]) == 0xBF))) {
+		line << 1;
+	}
+		
+	while (goodLine) {
+		// ignore commented lines
+		if (!skipCommentLines || !line.startsWith("#")) {
+			bufferedFile += line;
+		}
+		goodLine = FileMgr::getLine(fDesc, line);
+	}
+	return bufferedFile;
+}
+
+
 char FileMgr::isDirectory(const char *path) {
 #ifndef WIN32
 	struct stat stats;

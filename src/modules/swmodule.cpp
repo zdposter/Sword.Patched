@@ -550,7 +550,13 @@ ListKey &SWModule::search(const char *istr, int searchType, int flags, SWKey *sc
 			Xapian::Query q = queryParser.parse_query(istr);
 			Xapian::Enquire enquire = Xapian::Enquire(database);
 #elif defined USELUCENE
-			q = QueryParser::parse((wchar_t *)utf8ToWChar(istr).getRawData(), _T("content"), &analyzer);
+			// Append a trailing space to work around a CLucene tokenizer bug where
+			// the last token is not finalized correctly without a following whitespace.
+			// This fixes: single +TERM searches, and some Unicode words (e.g. Greek LXX).
+			SWBuf istrPadded = istr;
+			istrPadded.append(' ');
+			q = QueryParser::parse((wchar_t *)utf8ToWChar(istrPadded).getRawData(), _T("content"), &analyzer);
+
 #endif
 			(*percent)(20, percentUserData);
 

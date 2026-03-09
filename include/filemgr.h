@@ -195,6 +195,14 @@ public:
 	static int removeFile(const char *fName);
 	static char getLine(FileDesc *fDesc, SWBuf &line, bool strip = true);
 
+	/** load a full file up into a buffer
+	 * @param fDesc file descriptor to load (from FileMgr::open)
+	 * @param strip if we should strip the whitespace from front and back of each line
+	 * @param skipCommentLines skip lines which start with '#'
+	 * @return SWBuf filled with full file contents
+	 */
+	static SWBuf loadFile(FileDesc *fDesc, bool strip = false, bool skipCommentLines = false);
+
 	/**
 	 * Determines where SWORD looks for the user's home folder.  This is
 	 * typically used as a place to find any additional personal SWORD

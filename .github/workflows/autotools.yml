@@ -1,11 +1,11 @@
 name: Autotools build
-# Run autotools build on Linux, MacOS and Windows
+# Run autotools build on Linux and MacOS
 
 on:
-#  push:
-#    branches: [ "master" ]
-#  pull_request:
-#    branches: [ "master" ]
+  # push:
+    # branches: [ "master" ]
+  # pull_request:
+    # branches: [ "master" ]
   workflow_dispatch:
 
 jobs:
@@ -16,26 +16,29 @@ jobs:
       fail-fast: false
       matrix:
         config:
-          - { name: ubuntu-latest-gcc-autotools, os:  ubuntu-latest, cxx: g++ }
-          - { name: macos-latest-clang-autotools, os: macos-latest, cxx: clang++  }
-          - { name: macos-latest-gcc-autotools, os: macos-latest, cxx: g++  }
+          - { name: '🐧 ubuntu-latest-gcc-autotools', os:  ubuntu-latest, cxx: g++ }
+          - { name: '🍏 macos-latest-clang-autotools', os: macos-latest, cxx: clang++  }
+          - { name: '🍎 macos-latest-gcc-autotools', os: macos-latest, cxx: g++  }
 
     steps:
     - name: Checkout Source
       uses: actions/checkout@v6
 
-    - name: Install dependencies on Linux
+    - name: '⬇️ Install dependencies on Linux'
       run: |
            sudo apt-get update
            sudo apt-get install ${{ matrix.config.cxx }} -y
            sudo apt-get install autoconf-archive -y
+           sudo apt-get install pkg-config -y
            sudo apt-get install libicu-dev libcurl4-openssl-dev -y
            sudo apt-get install liblzma-dev lzma xz-utils libbz2-dev -y
            sudo apt-get install libxapian-dev libclucene-dev -y
            g++ --version
       if: runner.os == 'Linux'
 
-    - name: Install dependencies on macOS
+    - name: '⬇️ Install dependencies on macOS'
+      env:
+          HOMEBREW_REQUIRE_TAP_TRUST: "1"
       run: |
            brew install autoconf automake libtool xapian bzip2
            brew install autoconf-archive
@@ -49,29 +52,50 @@ jobs:
            g++ --version
       if: runner.os == 'macOS'
 
-    - name: autogen
-      run: ./autogen.sh
-    - name: configure
-      run: ./configure --with-cxx11regex --with-cxx11time --with-bzip2 --with-xz --disable-tests CXX=${{matrix.config.cxx}} # --enable-examples
-    - name: make
-      run: make -j 4
-    - name: install
+    - name: '🔧 Configure'
       run: |
+           ./autogen.sh
+           if [ "${{ runner.os }}" = "macOS" ]; then
+              BREW_PREFIX="$(brew --prefix)"
+              ICU_PREFIX="$(brew --prefix icu4c)"
+              CLUCENE_PREFIX="$(brew --prefix clucene 2>/dev/null || echo "${BREW_PREFIX}")"
+              export CPPFLAGS="-I${ICU_PREFIX}/include -I${CLUCENE_PREFIX}/include -I${BREW_PREFIX}/include ${CPPFLAGS}"
+              export LDFLAGS="-L${ICU_PREFIX}/lib -L${CLUCENE_PREFIX}/lib -L${BREW_PREFIX}/lib ${LDFLAGS}"
+              export PKG_CONFIG_PATH="${ICU_PREFIX}/lib/pkgconfig:${CLUCENE_PREFIX}/lib/pkgconfig:${BREW_PREFIX}/lib/pkgconfig:${PKG_CONFIG_PATH}"
+           fi
+           ./configure \
+             --with-cxx11regex --with-cxx11time \
+             --with-bzip2 --with-xz \
+             --with-clucene="${CLUCENE_PREFIX:-/usr}" \
+             --enable-tests \
+             CXX=${{ matrix.config.cxx }}
+    - name: '🚧 Build and install'
+      run: |
+           CXX=${{matrix.config.cxx}} make # -j 4
            sudo make install
            sudo make install_config
 
-    - name: Register installed lib
+    - name: '🔄 Register installed lib'
       run: |
            sudo ldconfig
       if: runner.os == 'Linux'
 
-    - name: tests
+    - name: '✔️ Tests'
       run: |
            sudo installmgr --allow-internet-access-and-risk-tracing-and-jail-or-martyrdom -sc -r CrossWire -ri CrossWire KJV
-           diatheke -b KJV -o fmnx -k Jn 3:16
+           diatheke -b KJV -f plain -k IThes 5:16
 
-# TODO
-   # - name: make check
-   #   run: make check
-   # - name: make distcheck
-   #   run: make distcheck
+    - name: '💔 Make check'
+      run: make check
+
+    - name: '🛡️ Make distcheck'
+      run: |
+           if [ "${{ runner.os }}" = "macOS" ]; then
+              BREW_PREFIX="$(brew --prefix)"
+              ICU_PREFIX="$(brew --prefix icu4c)"
+              CLUCENE_PREFIX="$(brew --prefix clucene 2>/dev/null || echo "${BREW_PREFIX}")"
+              export CPPFLAGS="-I${ICU_PREFIX}/include -I${CLUCENE_PREFIX}/include -I${BREW_PREFIX}/include${CPPFLAGS:+ ${CPPFLAGS}}"
+              export LDFLAGS="-L${ICU_PREFIX}/lib -L${CLUCENE_PREFIX}/lib -L${BREW_PREFIX}/lib${LDFLAGS:+ ${LDFLAGS}}"
+              export PKG_CONFIG_PATH="${ICU_PREFIX}/lib/pkgconfig:${CLUCENE_PREFIX}/lib/pkgconfig:${BREW_PREFIX}/lib/pkgconfig${PKG_CONFIG_PATH:+:${PKG_CONFIG_PATH}}"
+           fi
+           make distcheck

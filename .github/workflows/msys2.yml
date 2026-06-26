@@ -1,0 +1,131 @@
+name: MSYS2 Autotools Build
+# msys2 build for The Sword.Patched Project
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { icon: '🟦', sys: mingw64, package_prefix: mingw-w64-x86_64 }
+          - { icon: '🟨', sys: ucrt64, package_prefix: mingw-w64-ucrt-x86_64 } 
+    defaults:
+      run:
+        # This is critical: it tells the runner to execute the following 
+        # commands inside the MSYS2 shell (UCRT64) rather than PowerShell/CMD.
+        shell: msys2 {0}
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v7
+
+    - name: '⚙️ Setup MSYS2'
+      uses: msys2/setup-msys2@v2
+      with:
+        msystem: ${{ matrix.sys }}
+        update: true
+        install: >-
+          base-devel
+          git
+          make
+          autoconf
+          autoconf-archive
+          automake
+          libtool
+          python3
+          pkgconf
+          pkg-config
+          zip
+          binutils
+        pacboy: >-
+          toolchain:p
+          zlib:x
+          bzip2:x
+          xz:x
+          icu:p
+          curl:p
+          xapian-core:p
+          clucene:p  
+    - run: gcc --version
+
+    - name: '#️⃣ get-hash'
+      id: hash
+      run: |
+        sha_short=$(git describe --tags --always --abbrev=7 2>/dev/null || git rev-parse --short HEAD)
+        name=sword_$sha_short-${{matrix.sys}}
+        echo "sha_short=$sha_short" >> $GITHUB_OUTPUT
+        echo "name=$name" >> "$GITHUB_OUTPUT"
+        echo "name=$name"
+
+    - name: '👁️‍🗨️ Prepare env and verify deps'
+      run: |
+        MINGW_PREFIX="/${{ matrix.sys }}"
+        PKG_CONFIG_PATH="$MINGW_PREFIX/lib/pkgconfig:$MINGW_PREFIX/share/pkgconfig:$PKG_CONFIG_PATH"
+        export PKG_CONFIG_PATH
+
+        # Persist PKG_CONFIG_PATH for all subsequent steps
+        echo "PKG_CONFIG_PATH=$PKG_CONFIG_PATH" >> $GITHUB_ENV
+
+        echo "--- pkg-config version ---"
+        which pkg-config || true
+        pkg-config --version || true
+
+        echo "--- detected packages ---"
+        pkg-config --list-all | grep -E 'liblzma|icu|libcurl|xapian' || true
+        pkg-config --modversion liblzma    || true
+        pkg-config --modversion icu-uc     || true
+        pkg-config --modversion icu-i18n   || true
+        pkg-config --modversion libcurl    || true
+        pkg-config --modversion xapian-core || true
+        pkg-config --libs libcurl          || true
+        echo "PATH:" $PATH
+        echo "PKG_CONFIG_PATH:" $PKG_CONFIG_PATH
+
+    - name: '🔧 Configure Project'
+      run: |
+        MINGW_PREFIX="/${{ matrix.sys }}"
+        NAME="${{ steps.hash.outputs.name }}"
+        PREFIX="$PWD/$NAME"
+    
+        test -n "$NAME" || { echo "hash output 'name' is empty"; exit 1; }
+    
+        export PKG_CONFIG_PATH="$MINGW_PREFIX/lib/pkgconfig:$MINGW_PREFIX/share/pkgconfig:${PKG_CONFIG_PATH}"
+        export CPPFLAGS="-I$MINGW_PREFIX/include"
+        export LDFLAGS="-L$MINGW_PREFIX/lib"
+        
+        mkdir -p "$PREFIX/bin"
+        ./autogen.sh  # autoreconf -fiv
+        ./configure \
+          --with-cxx11regex \
+          --with-cxx11time \
+          --with-bzip2 \
+          --with-xz \
+          --with-curl \
+          --prefix="$PREFIX"
+         
+    - name: '🚧 Build and install'
+      run: |
+           make
+           make install  
+           
+    - name: '📦 Make zip'
+      run: |
+        NAME="${{ steps.hash.outputs.name }}"
+        PREFIX="$PWD/$NAME"
+        # Copy dependancies
+        cp /${{matrix.sys}}/bin/{libstdc++-6.dll,libgcc_s_seh-1.dll,libcurl-4.dll,zlib1.dll,liblzma-5.dll,libbz2-1.dll,libicu*.dll,libxapian*.dll,libwinpthread-1.dll,libclucene*.dll,libidn2-0.dll,libbrotlidec.dll,libnghttp2-14.dll,libnghttp3-9.dll,libngtcp2-16.dll,libpsl-5.dll,libngtcp2_crypto_ossl-0.dll,libssh2-1.dll,libunistring-5.dll} "$PREFIX/" || true
+        cd "$NAME"
+        zip -9 -r "../$NAME.zip" .
+        
+    - name: '⏫ Upload Build Results'
+      uses: actions/upload-artifact@v7
+      with:
+        name: ${{ steps.hash.outputs.name }}
+        path: ${{ steps.hash.outputs.name }}.zip
+        retention-days: 5       
+
+    - name: '💔 Make check'
+      run: make check

@@ -22,7 +22,7 @@ The goal of this fork is to provide community-driven fixes and improvements not 
 1. Clone the repository:
 
 ```sh
-git clone https://github.com/yourusername/Sword.Patched.git
+git clone https://github.com/zdposter/Sword.Patched.git
 cd Sword.Patched
 ```
 

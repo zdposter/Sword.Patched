@@ -122,7 +122,7 @@
    even if config.h says that we can.  */
 #  undef REL_ALLOC
 
-#  if defined STDC_HEADERS || defined _LIBC
+#  if defined STDC_HEADERS || defined _LIBC || defined __MINGW32__
 #   include <stdlib.h>
 #  else
 char *malloc ();

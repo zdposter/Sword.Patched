@@ -34,7 +34,7 @@ Latin1UTF16::Latin1UTF16() {
 
 char Latin1UTF16::processText(SWBuf &text, const SWKey *key, const SWModule *module) {
     const unsigned char *from;
-	 if ((unsigned long)key < 2)	// hack, we're en(1)/de(0)ciphering
+	 if ((size_t)key < 2)	// hack, we're en(1)/de(0)ciphering
 		return (char)-1;
    
     

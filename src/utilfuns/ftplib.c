@@ -20,49 +20,45 @@
 /*                                                                         */
 /***************************************************************************/
 // changes made by Lorn Potter <llornkcor@handhelds.org>
-// 
+//
+
+#include <stdio.h>  // MinGW-w64
+#include <errno.h>
+#include <stdlib.h>
+#include <string.h>
+#if defined(_WIN32)
+/* Windows (MinGW, MSVC, etc.) */
+#include <winsock2.h>
+#include <ws2tcpip.h>
+#include <windows.h>
+
+#ifndef socklen_t
+#define socklen_t int
+#endif
+#else /* not _WIN32 */
+
 #if defined(__unix__) || defined(__VMS)
 #include <unistd.h>
 #endif
-#if defined(_WIN32)
-#include <windows.h>
-#endif
-
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <errno.h>
-#include <ctype.h>
 
 #if defined(__unix__)
-
 #include <sys/types.h>
-#include <unistd.h>
 #include <fcntl.h>
 #include <sys/time.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
-#include <netdb.h>
 #include <arpa/inet.h>
+#include <netdb.h>
 
 #elif defined(VMS)
-
 #include <types.h>
 #include <socket.h>
 #include <in.h>
-#include <netdb.h>
 #include <inet.h>
-
-#elif defined(_WIN32)
-
-#include <winsock.h>
-
-#ifndef socklen_t
-#define socklen_t int
 #endif
 
-#endif
+#endif /* _WIN32 */
 
 #define BUILDING_LIBRARY
 #include "ftplib.h"
@@ -127,7 +123,7 @@ struct NetBuf {
     char *buf;
     int dir;
     netbuf *ctrl;
-    netbuf *data;    
+    netbuf *data;
     int cmode;
     struct timeval idletime;
     FtpCallback idlecb;
@@ -147,14 +143,14 @@ static char *version =
 
 GLOBALDEF int ftplib_debug = 0;
 
-#if defined(__unix__) || defined(VMS)
-#define net_read read
-#define net_write write
-#define net_close close
-#elif defined(_WIN32)
+#if defined(_WIN32)
 #define net_read(x,y,z) recv(x,y,z,0)
 #define net_write(x,y,z) send(x,y,z,0)
 #define net_close closesocket
+#elif defined(__unix__) || defined(VMS)
+#define net_read read
+#define net_write write
+#define net_close close
 #endif
 
 #if defined(NEED_MEMCCPY)
@@ -524,32 +520,32 @@ GLOBALDEF int FtpConnect(const char *host, netbuf **nControl)
     fcntl( sControl, F_SETFL, O_NONBLOCK|flags);
 
     stat=connect( sControl, (struct sockaddr *)&sin, sizeof(sin));
-    if (stat < 0) 
-      { 
-          if (errno != EWOULDBLOCK && errno != EINPROGRESS) 
-            { 
+    if (stat < 0)
+      {
+          if (errno != EWOULDBLOCK && errno != EINPROGRESS)
+            {
                 perror("connect");
                 net_close(sControl);
                 return 0;
-            } 
-      } 
+            }
+      }
 
-    FD_ZERO(&wr); 
-    FD_SET( sControl, &wr); 
+    FD_ZERO(&wr);
+    FD_SET( sControl, &wr);
 
     tv.tv_sec = ACCEPT_TIMEOUT;
-    tv.tv_usec = 0; 
+    tv.tv_usec = 0;
 
     stat = select(sControl+1, 0, &wr, 0, &tv);
 
     if (stat < 1)
-      { 
-            // time out has expired, 
+      {
+            // time out has expired,
             // or an error has ocurred
           perror("timeout");
           net_close(sControl);
           return 0;
-      } 
+      }
 
     if (ftplib_debug > 1)
         printf("connected\n");
@@ -601,7 +597,7 @@ GLOBALDEF int FtpConnect(const char *host, netbuf **nControl)
  *
  * returns 1 if successful, 0 on error
  */
-GLOBALDEF int FtpOptions(int opt, long val, netbuf *nControl)
+GLOBALDEF int FtpOptions(int opt, intptr_t val, netbuf *nControl)
 {
     int v,rv=0;
     switch (opt)
@@ -909,7 +905,7 @@ static int FtpAcceptConnection(netbuf *nData, netbuf *nControl)
                 rv = 0;
             }
       }
-    return rv;  
+    return rv;
 }
 
 /*
@@ -1094,7 +1090,7 @@ GLOBALDEF int FtpClose(netbuf *nData)
 GLOBALDEF int FtpSite(const char *cmd, netbuf *nControl)
 {
     char buf[256];
-    
+
     if ((strlen(cmd) + 7) > sizeof(buf))
         return 0;
     sprintf(buf,"SITE %s",cmd);
@@ -1322,7 +1318,7 @@ GLOBALDEF int FtpSize(const char *path, int *size, char mode, netbuf *nControl)
               *size = sz;
           else
               rv = 0;
-      }   
+      }
     return rv;
 }
 

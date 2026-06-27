@@ -20,21 +20,29 @@ AC_PREREQ(2.52)
 AC_REVISION($Revision: 1.45 $)
 
 AC_CANONICAL_TARGET
-#AM_INIT_AUTOMAKE
-
-# this doesn't work
 AM_INIT_AUTOMAKE([subdir-objects])
 
 AC_CONFIG_HEADERS([include/config.h])
-
 AC_CONFIG_MACRO_DIR([m4])
 
+# ---------------------------------------------------------------------
+# Platform detection
+# ---------------------------------------------------------------------
 case $host_os in
-     mingw*)
-	   # both lines necessary to convince gcc to build dll
-	   # LIBS="$LIBS -no-undefined";
-	   export lt_cv_deplibs_check_method=pass_all;
-	   ;;
+    mingw* | msys*)
+        # Allow libtool to pass DLL checks without exhaustive inspection
+        export lt_cv_deplibs_check_method=pass_all
+        # Tell the linker that we are building a Windows DLL
+        # (un-comment when building a shared lib):
+        # LDFLAGS="$LDFLAGS -no-undefined"
+        is_windows_host=yes
+        ;;
+    cygwin*)
+        is_windows_host=yes
+        ;;
+    *)
+        is_windows_host=no
+        ;;
 esac
 
 # ---------------------------------------------------------------------
@@ -52,7 +60,6 @@ AC_C_BIGENDIAN
 # ----------------------------------------
 # C++ related options
 # ----------------------------------------
-
 # Detect Clang compiler
 AC_MSG_CHECKING([if compiling with clang])
 AC_COMPILE_IFELSE(
@@ -69,11 +76,11 @@ dnl Turn on C++17 or newer
 dnl **********************
 
 CPLUSPLUS=
-AX_CHECK_COMPILE_FLAG([-std=c++17], [CPLUSPLUS=17], [], [$WERROR])
+AX_CHECK_COMPILE_FLAG([-std=c++17], [CPLUSPLUS=17])
 if test -z "$CPLUSPLUS"; then
-  AC_MSG_WARN([Your compiler does not have the necessary C++17 support! Build can failed.])
+  AC_MSG_WARN([Your compiler does not have the necessary C++17 support! Build may fail.])
 fi
-# Set C++17 support based on platform/compiler
+
 case "${host_os}" in
   cygwin*)
     CXXFLAGS="$CXXFLAGS -std=gnu++$CPLUSPLUS"
@@ -85,15 +92,9 @@ case "${host_os}" in
     fi
     ;;
   *)
-    # default
     CXXFLAGS="$CXXFLAGS -std=c++$CPLUSPLUS"
     ;;
 esac
-
-PKG_CHECK_MODULES([CLUCENE2], [libclucene-core >= 2.3],,true)
-if test "x$CLUCENE2_LIBS" = x; then
-ACX_CLUCENE
-fi
 
 # ---------------------------------------------------------------------
 # With options
@@ -118,8 +119,6 @@ AC_ARG_WITH([curl],
 	[  --with-curl             build install manager support using libcurl (default=yes)],, [with_curl=yes])
 AC_ARG_WITH([curl_sftp],
 	[  --with-curl_sftp        build install manager support using libcurl+sftp (requires --with-curl, default=yes)],, [with_curl_sftp=yes])
-#AC_ARG_WITH(lucene,
-#	AC_HELP_STRING([--with-lucene],[include lucene support for searching (default=no)]),,with_lucene=no)
 AC_ARG_WITH([internalregex],
 	[  --with-internalregex    Compile using SWORDs internal copy of regex])
 AC_ARG_WITH([icuregex],
@@ -128,7 +127,6 @@ AC_ARG_WITH([xapian],
 	[  --with-xapian           use xapian search engine (default=yes)],, [with_xapian=yes])
 AC_ARG_WITH([gapi],
 	[  --with-gapi             build SWORD with support for google apis],, [with_gapi=no])
-
 
 # ---------------------------------------------------------------------
 # Enable options
@@ -157,7 +155,6 @@ AM_MAINTAINER_MODE
 # Debug and profile
 # ---------------------------------------------------------------------
 
-# these are first because the SET AM_C.*FLAGS, not just append
 if test x$enable_debug = xyes; then
   GCJFLAGS="-g -O0"
   if test x$ac_cv_prog_cc_g = xyes; then
@@ -171,26 +168,14 @@ if test x$enable_debug = xyes; then
     AM_CXXFLAGS="-O0 -Wall -Woverloaded-virtual"
   fi
 else
-  my_save_cxxflags="$CXXFLAGS"
-  CXXFLAGS=-Ofast
-  AC_MSG_CHECKING([whether CXX supports -Ofast])
-  AC_LANG_PUSH([C++])
-  AC_COMPILE_IFELSE([AC_LANG_PROGRAM([])],
-      [AC_MSG_RESULT([yes])]
-      [AM_CFLAGS=-Ofast]
-      [AM_CXXFLAGS=-Ofast],
-      [AC_MSG_RESULT([no])]
-      [AM_CFLAGS=-O3]
-      [AM_CXXFLAGS=-O3],
-  )
-  CXXFLAGS="$my_save_cxxflags"
-  AC_LANG_POP([C++])
+  AM_CFLAGS="-O3 -ffast-math"
+  AM_CXXFLAGS="-O3 -ffast-math -Woverloaded-virtual"
 fi
 
 AM_CFLAGS="$AM_CFLAGS -fPIC"
 AM_CXXFLAGS="$AM_CXXFLAGS -fPIC"
 
-#stupid check for old or new g++ compiler param syntax for this compiler option
+# Check for old vs new g++ template-depth syntax
 saved_CXXFLAGS="$CXXFLAGS"
 CXXFLAGS="$CXXFLAGS -ftemplate-depth=100"
 AC_LANG_PUSH([C++])
@@ -198,144 +183,207 @@ AC_COMPILE_IFELSE([AC_LANG_PROGRAM([])],,[CXXFLAGS="$saved_CXXFLAGS -ftemplate-d
 AC_LANG_POP([C++])
 
 # ---------------------------------------------------------------------
+# Locate pkg-config (single, authoritative call)
+# ---------------------------------------------------------------------
+# PKG_PROG_PKG_CONFIG must be called once before any PKG_CHECK_MODULES.
+# We do NOT gate anything on use_pkgconfig — pkg-config is effectively
+# required on all supported platforms today.
+PKG_PROG_PKG_CONFIG([0.14])
+if test -z "$PKG_CONFIG"; then
+  AC_MSG_WARN([pkg-config not found — library detection may be incomplete.])
+  AC_MSG_WARN([Install pkg-config (Linux/macOS) or mingw-w64-*-pkgconf (MSYS2).])
+fi
+
+# ---------------------------------------------------------------------
+# Augment PKG_CONFIG_PATH for known toolchain prefixes
+# ---------------------------------------------------------------------
+# Under MSYS2 the shell already exports PKG_CONFIG_PATH for the active
+# environment (e.g. /mingw64/lib/pkgconfig).  We only add paths that
+# are missing so we do not break the user's own setup.
+#
+# Helper: append $2 to $1 if not already present
+m4_define([SWORD_PREPEND_PKGPATH], [
+  case ":${PKG_CONFIG_PATH}:" in
+    *":$2:"*) ;;
+    *) PKG_CONFIG_PATH="$2${PKG_CONFIG_PATH:+:$PKG_CONFIG_PATH}" ;;
+  esac
+])
+
+case $host_os in
+  mingw* | msys*)
+    # Derive the mingw prefix from the compiler executable so the script
+    # works for mingw32, mingw64, ucrt64, clang64, etc.
+    sword_mingw_prefix=$(dirname $(dirname $($CXX -print-sysroot 2>/dev/null || echo "/mingw64")))
+    # Fallback: try MINGW_PREFIX env var (set by MSYS2 shell)
+    if test -z "$sword_mingw_prefix" || test "$sword_mingw_prefix" = "/"; then
+      sword_mingw_prefix="${MINGW_PREFIX:-/mingw64}"
+    fi
+    SWORD_PREPEND_PKGPATH([PKG_CONFIG_PATH], [$sword_mingw_prefix/lib/pkgconfig])
+    SWORD_PREPEND_PKGPATH([PKG_CONFIG_PATH], [$sword_mingw_prefix/share/pkgconfig])
+    export PKG_CONFIG_PATH
+    AC_MSG_NOTICE([MSYS2/MinGW PKG_CONFIG_PATH: $PKG_CONFIG_PATH])
+    ;;
+  *-darwin* | *-macos10*)
+    # Homebrew — only set if the user has not already configured the path
+    AC_CHECK_PROG([have_brew], [brew], [true], [false])
+    if $have_brew; then
+      brew_prefix=$(brew --prefix)
+      SWORD_PREPEND_PKGPATH([PKG_CONFIG_PATH], [$brew_prefix/opt/icu4c/lib/pkgconfig])
+      SWORD_PREPEND_PKGPATH([PKG_CONFIG_PATH], [$brew_prefix/opt/libarchive/lib/pkgconfig])
+      SWORD_PREPEND_PKGPATH([PKG_CONFIG_PATH], [$brew_prefix/opt/curl/lib/pkgconfig])
+      SWORD_PREPEND_PKGPATH([PKG_CONFIG_PATH], [$brew_prefix/opt/xapian/lib/pkgconfig])
+      export PKG_CONFIG_PATH
+    fi
+    ;;
+esac
+
+# ---------------------------------------------------------------------
 # Check libraries
 # ---------------------------------------------------------------------
-if test x$with_zlib  = xyes; then
-	AC_CHECK_LIB(z, compress,,with_zlib="no")
-else
-	with_zlib="no"
+if test x$with_zlib = xyes; then
+  AC_CHECK_LIB([z], [compress],, [with_zlib=no])
 fi
-
 if test x$with_zlib = xno; then
-	AM_CFLAGS="$AM_CFLAGS -DEXCLUDEZLIB"
-	AM_CXXFLAGS="$AM_CXXFLAGS -DEXCLUDEZLIB"
+  AM_CFLAGS="$AM_CFLAGS -DEXCLUDEZLIB"
+  AM_CXXFLAGS="$AM_CXXFLAGS -DEXCLUDEZLIB"
 fi
 
-if test x$with_bzip2  = xyes; then
-	AC_CHECK_LIB(bz2, BZ2_bzBuffToBuffCompress,,with_bzip2="no")
-else
-	with_bzip2="no"
+if test x$with_bzip2 = xyes; then
+  AC_CHECK_LIB([bz2], [BZ2_bzBuffToBuffCompress],, [with_bzip2=no])
 fi
-
 if test x$with_bzip2 = xno; then
-	AM_CFLAGS="$AM_CFLAGS -DEXCLUDEBZIP2"
-	AM_CXXFLAGS="$AM_CXXFLAGS -DEXCLUDEBZIP2"
+  AM_CFLAGS="$AM_CFLAGS -DEXCLUDEBZIP2"
+  AM_CXXFLAGS="$AM_CXXFLAGS -DEXCLUDEBZIP2"
 fi
 
 if test x$with_xz = xno; then
-	AM_CFLAGS="$AM_CFLAGS -DEXCLUDEXZ"
-	AM_CXXFLAGS="$AM_CXXFLAGS -DEXCLUDEXZ"
+  AM_CFLAGS="$AM_CFLAGS -DEXCLUDEXZ"
+  AM_CXXFLAGS="$AM_CXXFLAGS -DEXCLUDEXZ"
 fi
 
 AS_IF([test "x$with_internalregex" = "xyes"],
       [have_systemregex="no, using internal regex"],
-      [AC_SEARCH_LIBS(regexec, regex, [have_systemregex="yes"], [have_systemregex="no, using internal regex"])])
+      [AC_SEARCH_LIBS([regexec], [regex],
+         [have_systemregex="yes"],
+         [have_systemregex="no, using internal regex"])])
 
 AS_IF([test "x$have_systemregex" = "xyes"],
       [with_internalregex="no"
        AC_MSG_NOTICE([Using system regex.h])],
       [with_internalregex="yes"
-       AS_IF([test "x$with_internalregex" = "xno"],
-      	[AC_MSG_ERROR([System regex forced but not found])],
-	[AC_MSG_NOTICE([Using internal regex.h])])])
-
+       AC_MSG_NOTICE([Using internal regex.h])])
 
 # ---------------------------------------------------------------------
 # Find CppUnit
 # ---------------------------------------------------------------------
-# Locate CppUnit (minimum version 1.8.0) for testing.
 AM_PATH_CPPUNIT(1.8.0)
-
-# You can set up an automake conditional and use it to conditionally
-# build cppunit-using test programs.
-AM_CONDITIONAL(HAVE_CPPUNIT, test "$CPPUNIT_LIBS")
-
-
-# ---------------------------------------------------------------------
-# Find pkg-config
-# ---------------------------------------------------------------------
-use_pkgconfig=yes
-PKG_PROG_PKG_CONFIG(PKG_CONFIG, pkg-config, no)
-if test x$PKG_CONFIG = xno ; then
-  AC_MSG_WARN([*** pkg-config not found. See http://www.freedesktop.org/software/pkgconfig/])
-  AC_MSG_WARN([not using pkg-config])
-  use_pkgconfig=no
-fi
-
-if $PKG_CONFIG --atleast-pkgconfig-version 0.14 ; then
-  :
-else
-  AC_MSG_WARN([*** pkg-config too old; version 0.14 or better required.])
-  AC_MSG_WARN([not using pkg-config])
-  use_pkgconfig=no
-fi
-
-# Set PKG_CONFIG_PATH for macOS with Homebrew unless it is already set.
-AC_CHECK_PROG([have_brew], brew, true, false)
-if $have_brew; then
-  brew_prefix=$(brew --prefix)
-  if test -z "$PKG_CONFIG_PATH"; then
-    PKG_CONFIG_PATH=$brew_prefix/opt/icu4c/lib/pkgconfig:$brew_prefix/opt/libarchive/lib/pkgconfig
-    export PKG_CONFIG_PATH
-  fi
-fi
+AM_CONDITIONAL([HAVE_CPPUNIT], [test "x$CPPUNIT_LIBS" != x])
 
 # ---------------------------------------------------------------------
 # Find XZ / lzma using pkg-config
 # ---------------------------------------------------------------------
-if test x$with_xz  = xyes; then
-    PKG_CHECK_MODULES([XZ], [liblzma], [
-        with_xz="yes"
-        AC_DEFINE([HAVE_XZ], [1], [Define to 1 if you have XZ/LZMA support])
-        AM_CFLAGS="$AM_CFLAGS $XZ_CFLAGS"
-        AM_CXXFLAGS="$AM_CXXFLAGS $XZ_CFLAGS"
-        LIBS="$LIBS $XZ_LIBS"
-    ], [
-        with_xz="no"
-    ])
-else
-    with_xz="no"
+if test x$with_xz = xyes; then
+  PKG_CHECK_MODULES([XZ], [liblzma], [
+    with_xz=yes
+    AC_DEFINE([HAVE_XZ], [1], [Define to 1 if you have XZ/LZMA support])
+    AM_CFLAGS="$AM_CFLAGS $XZ_CFLAGS"
+    AM_CXXFLAGS="$AM_CXXFLAGS $XZ_CFLAGS"
+  ], [
+    with_xz=no
+  ])
 fi
+AC_SUBST([XZ_CFLAGS])
+AC_SUBST([XZ_LIBS])
 
 # ---------------------------------------------------------------------
-# Find ICU using pkg-config
+# Find ICU
+# ---------------------------------------------------------------------
+# Strategy:
+#  1. Try pkg-config (works on Linux, macOS/Homebrew, MSYS2).
+#  2. Fall back to icu-config script (older installs).
+#  3. Fall back to AC_CHECK_LIB with the naming convention used on
+#     each platform (icuuc / sicuuc on Windows static builds).
 # ---------------------------------------------------------------------
 ICU_LIBS=
+ICU_CFLAGS=
 ICU_IOLIBS=
-if test x$with_icu = xyes; then
-    # Check for pkg-config
-    PKG_PROG_PKG_CONFIG
 
-    # Check for ICU libraries
-    PKG_CHECK_MODULES(ICU, icu-uc, [
-        ICU_LIBS="$ICU_LIBS"
+if test x$with_icu = xyes; then
+  # --- attempt 1: pkg-config ---
+  PKG_CHECK_MODULES([ICU], [icu-uc >= 52.1 icu-i18n >= 52.1], [
+    with_icu=yes
+    AM_CXXFLAGS="$AM_CXXFLAGS $ICU_CFLAGS -D_ICU_"
+    AM_CFLAGS="$AM_CFLAGS $ICU_CFLAGS -D_ICU_"
+    LIBS="$LIBS $ICU_LIBS"
+    PKG_CHECK_MODULES([ICUIO], [icu-io], [
+      ICU_IOLIBS="$ICUIO_LIBS"
+      LIBS="$LIBS $ICUIO_LIBS"
+    ], [
+      ICU_IOLIBS=
+    ])
+  ], [
+    # --- attempt 2: icu-config script ---
+    AC_PATH_PROG([ICU_CONFIG], [icu-config], [no])
+    if test "x$ICU_CONFIG" != "xno"; then
+      AC_MSG_NOTICE([ICU pkg-config not found; using icu-config script])
+      ICU_CFLAGS=$($ICU_CONFIG --cppflags-searchpath 2>/dev/null)
+      ICU_LIBS=$($ICU_CONFIG --ldflags 2>/dev/null)
+      ICU_IOLIBS=$($ICU_CONFIG --ldflags-icuio 2>/dev/null)
+      if test -n "$ICU_LIBS"; then
         with_icu=yes
         AM_CXXFLAGS="$AM_CXXFLAGS $ICU_CFLAGS -D_ICU_"
         AM_CFLAGS="$AM_CFLAGS $ICU_CFLAGS -D_ICU_"
-        LIBS="$LIBS $ICU_LIBS"
-
-        # Try to find icu-io separately if needed
-        PKG_CHECK_MODULES(ICUIO, icu-io, [
-            ICU_IOLIBS="$ICUIO_LIBS"
-            LIBS="$LIBS $ICUIO_LIBS"
-        ], [
-            # icu-io not found, but that might be OK
-            ICU_IOLIBS=""
-        ])
-    ], [
-        echo "*** ICU libraries not found via pkg-config"
-        echo "*** You may need to install ICU development packages"
-        echo "*** compiling without ICU support"
+        LIBS="$LIBS $ICU_LIBS $ICU_IOLIBS"
+      else
+        AC_MSG_WARN([icu-config found but returned no flags — disabling ICU])
         with_icu=no
-    ])
+      fi
+    else
+      # --- attempt 3: direct library probe ---
+      # MSYS2 ships icuuc/icuin; some static Windows builds use sicuuc/sicuin
+      AC_MSG_NOTICE([No icu-config; probing ICU libraries directly])
+      AC_LANG_PUSH([C++])
+      saved_LIBS="$LIBS"
+      icu_found=no
+      for icu_uc_lib in icuuc sicuuc; do
+        for icu_in_lib in icuin icui18n sicuin; do
+          LIBS="$saved_LIBS -l$icu_uc_lib -l$icu_in_lib"
+          AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include <unicode/ustring.h>]],
+                         [[u_strlen(NULL);]])],
+            [icu_found=yes; break], [])
+          test "x$icu_found" = xyes && break
+        done
+        test "x$icu_found" = xyes && break
+      done
+      AC_LANG_POP([C++])
+      if test "x$icu_found" = xyes; then
+        with_icu=yes
+        ICU_LIBS="-l$icu_uc_lib -l$icu_in_lib"
+        AM_CXXFLAGS="$AM_CXXFLAGS -D_ICU_"
+        AM_CFLAGS="$AM_CFLAGS -D_ICU_"
+        # Probe for icuio / sicuio
+        AC_CHECK_LIB([icuio], [main],
+          [ICU_IOLIBS="-licuio"; LIBS="$LIBS -licuio"],
+          [AC_CHECK_LIB([sicuio], [main],
+            [ICU_IOLIBS="-lsicuio"; LIBS="$LIBS -lsicuio"],
+            [ICU_IOLIBS=])])
+      else
+        LIBS="$saved_LIBS"
+        AC_MSG_WARN([ICU libraries not found — compiling without ICU support])
+        with_icu=no
+      fi
+    fi
+  ])
 fi
-
 
 if test x$with_icusword = xyes; then
-AM_CXXFLAGS="$AM_CXXFLAGS -D_ICUSWORD_"
-AM_CFLAGS="$AM_CFLAGS -D_ICUSWORD_"
+  AM_CXXFLAGS="$AM_CXXFLAGS -D_ICUSWORD_"
+  AM_CFLAGS="$AM_CFLAGS -D_ICUSWORD_"
 fi
 
+# ---------------------------------------------------------------------
+# Compiler warning / profiling flags
+# ---------------------------------------------------------------------
 if test x$enable_warnings = xyes; then
   AM_CFLAGS="$AM_CFLAGS -Werror"
   AM_CXXFLAGS="$AM_CXXFLAGS -Werror -Woverloaded-virtual"
@@ -345,6 +393,7 @@ if test x$enable_profile = xyes; then
   AM_CFLAGS="$AM_CFLAGS -pg"
   AM_CXXFLAGS="$AM_CXXFLAGS -pg"
 fi
+
 if test x$enable_profilefn = xyes; then
   AM_CFLAGS="$AM_CFLAGS -g -finstrument-functions"
   AM_CXXFLAGS="$AM_CXXFLAGS -g -finstrument-functions"
@@ -352,121 +401,238 @@ if test x$enable_profilefn = xyes; then
 fi
 
 # ---------------------------------------------------------------------
-# Check for curl for installmgr suport
+# Find libcurl for install manager support
 # ---------------------------------------------------------------------
-
+# Strategy:
+#  1. pkg-config (preferred; works everywhere including MSYS2).
+#  2. curl-config script (fallback for non-standard installs).
+#  3. Direct AC_CHECK_LIB (last resort).
+# ---------------------------------------------------------------------
 with_internalftplib=no
+CURL_LIBS=
+CURL_AM_CFLAGS=
+
 if test x$with_curl = xyes; then
-    AC_PATH_PROG(CURL_CONFIG, curl-config, no)
-    if test "$CURL_CONFIG" = "no" ; then
-	echo "*** The curl-config script installed by curl could not be found"
-	echo "*** compiling without libcurl support"
-	with_curl="no, using internal ftplib"
-	with_curl_sftp=no
-	with_internalftplib=yes
-    else
-	echo "curl found - remote install options available"
-	CURL_AM_CFLAGS=`$CURL_CONFIG --cflags`
-	CURL_LIBS=`$CURL_CONFIG --libs`
-	AM_CXXFLAGS="$AM_CXXFLAGS -DCURLAVAILABLE $CURL_AM_CFLAGS"
-	AM_CFLAGS="$AM_CFLAGS -DCURLAVAILABLE $CURL_AM_CFLAGS"
-	LIBS="$LIBS $CURL_LIBS"
-	if test x$with_curl_sftp = xyes; then
-		if test x`$CURL_CONFIG --protocols|grep SFTP|wc -l` = x1; then
-			AM_CXXFLAGS="$AM_CXXFLAGS -DCURLSFTPAVAILABLE"
-			AM_CFLAGS="$AM_CFLAGS -DCURLSFTPAVAILABLE"
-		else
-			with_curl_sftp=no;
-		fi
-	fi
+  # --- attempt 1: pkg-config ---
+  PKG_CHECK_MODULES([LIBCURL], [libcurl], [
+    have_libcurl=yes
+    CURL_AM_CFLAGS="$LIBCURL_CFLAGS"
+    CURL_LIBS="$LIBCURL_LIBS"
+  ], [
+    have_libcurl=no
+  ])
+
+  if test "x$have_libcurl" = xno; then
+    # --- attempt 2: curl-config script ---
+    AC_PATH_PROG([CURL_CONFIG], [curl-config], [no])
+    if test "x$CURL_CONFIG" != xno; then
+      AC_MSG_NOTICE([libcurl pkg-config not found; using curl-config script])
+      CURL_AM_CFLAGS=$($CURL_CONFIG --cflags 2>/dev/null)
+      CURL_LIBS=$($CURL_CONFIG --libs 2>/dev/null)
+      if test -n "$CURL_LIBS"; then
+        have_libcurl=yes
+      fi
     fi
+  fi
+
+  if test "x$have_libcurl" = xno; then
+    # --- attempt 3: direct probe ---
+    AC_MSG_NOTICE([curl-config not found; probing libcurl directly])
+    AC_CHECK_LIB([curl], [curl_easy_init],
+      [have_libcurl=yes; CURL_LIBS="-lcurl"],
+      [have_libcurl=no])
+  fi
+
+  if test "x$have_libcurl" = xyes; then
+    AC_MSG_NOTICE([curl found — remote install options available])
+    AM_CXXFLAGS="$AM_CXXFLAGS -DCURLAVAILABLE $CURL_AM_CFLAGS"
+    AM_CFLAGS="$AM_CFLAGS -DCURLAVAILABLE $CURL_AM_CFLAGS"
+    LIBS="$LIBS $CURL_LIBS"
+    with_curl=yes
+
+    # Check for SFTP protocol support
+    if test x$with_curl_sftp = xyes; then
+      curl_sftp_supported=no
+      # Try pkg-config / curl-config first, then a compile check
+      if test "x$CURL_CONFIG" != xno && test "x$CURL_CONFIG" != x; then
+        if test x$($CURL_CONFIG --protocols 2>/dev/null | grep -i SFTP | wc -l) = x1; then
+          curl_sftp_supported=yes
+        fi
+      else
+        # pkg-config path: probe with a feature-test compile
+        AC_LANG_PUSH([C++])
+        AC_COMPILE_IFELSE([AC_LANG_PROGRAM(
+          [[#include <curl/curl.h>]],
+          [[
+            #ifndef CURL_VERSION_LIBZ
+            #error no sftp info
+            #endif
+            (void)curl_version_info(CURLVERSION_NOW);
+          ]])],
+          [curl_sftp_supported=yes], [curl_sftp_supported=no])
+        AC_LANG_POP([C++])
+      fi
+      if test "x$curl_sftp_supported" = xyes; then
+        AM_CXXFLAGS="$AM_CXXFLAGS -DCURLSFTPAVAILABLE"
+        AM_CFLAGS="$AM_CFLAGS -DCURLSFTPAVAILABLE"
+      else
+        with_curl_sftp=no
+      fi
+    fi
+  else
+    AC_MSG_WARN([libcurl not found — compiling without curl support, using internal ftplib])
+    with_curl="no, using internal ftplib"
+    with_curl_sftp=no
+    with_internalftplib=yes
+  fi
 else
-	with_curl="no, using internal ftplib"
-	with_curl_sftp=no;
-	with_internalftplib=yes
+  with_curl="no, using internal ftplib"
+  with_curl_sftp=no
+  with_internalftplib=yes
 fi
 
+# ---------------------------------------------------------------------
+# Optional CXX11 flags
+# ---------------------------------------------------------------------
 if test x$with_cxx11regex = xyes; then
-	AM_CXXFLAGS="$AM_CXXFLAGS -DUSECXX11REGEX"
+  AM_CXXFLAGS="$AM_CXXFLAGS -DUSECXX11REGEX"
 fi
 
 if test x$with_cxx11time = xyes; then
-	AM_CXXFLAGS="$AM_CXXFLAGS -DUSECXX11TIME"
+  AM_CXXFLAGS="$AM_CXXFLAGS -DUSECXX11TIME"
 fi
 
 if test x$disable_logdebug = xyes; then
-	AM_CXXFLAGS="$AM_CXXFLAGS -DSTRIPLOGD"
+  AM_CXXFLAGS="$AM_CXXFLAGS -DSTRIPLOGD"
 fi
 
 if test x$disable_loginfo = xyes; then
-	AM_CXXFLAGS="$AM_CXXFLAGS -DSTRIPLOGI"
+  AM_CXXFLAGS="$AM_CXXFLAGS -DSTRIPLOGI"
 fi
 
 # ---------------------------------------------------------------------
-# Check for clucene for lucene searching support
+# Find CLucene for lucene searching support
 # ---------------------------------------------------------------------
-
-# NOTE the $libdir hack at the end of the c[xx]flags.  Apparently F16 finds that clucene is not multilib-save and places some include files in /usr/lib[64]/
+# NOTE: The $libdir include hack is preserved — on some distros (e.g.
+# Fedora multilib) CLucene places generated headers under /usr/lib[64]/.
+# Strategy:
+#  1. pkg-config for CLucene 2.x (libclucene-core).
+#  2. Legacy ACX_CLUCENE m4 macro for 0.x.
+# Both checks happen AFTER PKG_CONFIG_PATH is fully set up (above).
+# ---------------------------------------------------------------------
 with_clucene=no
-if test "x$CLUCENE2_LIBS" != x; then
-   echo "clucene 2.x found - lucene searching options available"
-   AM_CXXFLAGS="$AM_CXXFLAGS $CLUCENE2_CFLAGS -DUSELUCENE -DCLUCENE2 -I$libdir"
-   AM_CFLAGS="$AM_CFLAGS $CLUCENE2_CFLAGS -DUSELUCENE -DCLUCENE2 -I$libdir"
-   LIBS="$LIBS $CLUCENE2_LIBS"
-   with_clucene="yes 2.x"
-   CLUCENE_LIBS="$CLUCENE_LIBS $CLUCENE2_LIBS"
-else
-if test "x$CLUCENE_LIBS" != x; then
-   echo "lucene 0.x found - lucene searching options available"
-   AM_CXXFLAGS="$AM_CXXFLAGS $CLUCENE_CXXFLAGS -DUSELUCENE -I$libdir"
-   AM_CFLAGS="$AM_CFLAGS -DUSELUCENE -I$libdir"
-   LIBS="$LIBS $CLUCENE_LIBS"
-   with_clucene="yes 0.x"
-else
-   echo "lucene searching options not available"
-fi
-fi
+CLUCENE_LIBS=
 
-if test x$with_xapian = xyes; then
-	AC_LANG([C++])
-	AC_CHECK_LIB(xapian,main,,with_xapian="no")
-else
-	with_xapian="no"
-fi
+PKG_CHECK_MODULES([CLUCENE2], [libclucene-core >= 2.3], [
+  AC_MSG_NOTICE([CLucene 2.x found — lucene searching options available])
+  AM_CXXFLAGS="$AM_CXXFLAGS $CLUCENE2_CFLAGS -DUSELUCENE -DCLUCENE2 -I$libdir"
+  AM_CFLAGS="$AM_CFLAGS $CLUCENE2_CFLAGS -DUSELUCENE -DCLUCENE2 -I$libdir"
+  LIBS="$LIBS $CLUCENE2_LIBS"
+  with_clucene="yes 2.x"
+  CLUCENE_LIBS="$CLUCENE2_LIBS"
+], [
+  # Fall back to old ACX_CLUCENE macro (0.9.x / 0.x)
+  ACX_CLUCENE
+  if test "x$CLUCENE_LIBS" != x; then
+    AC_MSG_NOTICE([CLucene 0.x found — lucene searching options available])
+    AM_CXXFLAGS="$AM_CXXFLAGS $CLUCENE_CXXFLAGS -DUSELUCENE -I$libdir"
+    AM_CFLAGS="$AM_CFLAGS -DUSELUCENE -I$libdir"
+    LIBS="$LIBS $CLUCENE_LIBS"
+    with_clucene="yes 0.x"
+  else
+    AC_MSG_WARN([CLucene not found — lucene searching unavailable])
+  fi
+])
 
+# ---------------------------------------------------------------------
+# Find ICU regex support (depends on ICU being enabled)
+# ---------------------------------------------------------------------
 if test x$with_icuregex = xyes; then
-	if test x$with_icu = xno; then
-		with_icuregex="requested; but using ICU not enabled"
-	else
-		AM_CFLAGS="$AM_CFLAGS -DUSEICUREGEX"
-		AM_CXXFLAGS="$AM_CXXFLAGS -DUSEICUREGEX"
-	fi
+  if test x$with_icu = xno; then
+    with_icuregex="requested but ICU not enabled"
+  else
+    AM_CFLAGS="$AM_CFLAGS -DUSEICUREGEX"
+    AM_CXXFLAGS="$AM_CXXFLAGS -DUSEICUREGEX"
+  fi
 else
-	with_icuregex="no"
+  with_icuregex="no"
 fi
+
+# ---------------------------------------------------------------------
+# Find Xapian search engine
+# ---------------------------------------------------------------------
+# Strategy:
+#  1. pkg-config (xapian-core) — works on Linux, macOS/Homebrew, MSYS2.
+#  2. xapian-config script — ships with source tarballs and some distros.
+#  3. Direct AC_CHECK_LIB with C++ link test (C++ libraries need special care).
+# ---------------------------------------------------------------------
+XAPIAN_CFLAGS=
+XAPIAN_LIBS=
 
 if test x$with_xapian = xyes; then
-	AM_CFLAGS="$AM_CFLAGS -DUSEXAPIAN"
-	AM_CXXFLAGS="$AM_CXXFLAGS -DUSEXAPIAN"
-	if test "x$with_clucene" = xno; then
-		with_clucene="no"
-	else
-		with_clucene="$with_clucene; but using XAPIAN instead"
-	fi
+  # --- attempt 1: pkg-config ---
+  PKG_CHECK_MODULES([XAPIAN], [xapian-core], [
+    with_xapian=yes
+  ], [
+    with_xapian=no
+    # --- attempt 2: xapian-config script ---
+    AC_PATH_PROG([XAPIAN_CONFIG], [xapian-config], [no])
+    if test "x$XAPIAN_CONFIG" != xno; then
+      AC_MSG_NOTICE([xapian pkg-config not found; using xapian-config script])
+      XAPIAN_CFLAGS=$($XAPIAN_CONFIG --cxxflags 2>/dev/null)
+      XAPIAN_LIBS=$($XAPIAN_CONFIG --libs 2>/dev/null)
+      if test -n "$XAPIAN_LIBS"; then
+        with_xapian=yes
+      fi
+    fi
+
+    if test x$with_xapian = xno; then
+      # --- attempt 3: direct C++ link probe ---
+      AC_MSG_NOTICE([xapian-config not found; probing xapian library directly])
+      AC_LANG_PUSH([C++])
+      saved_LIBS="$LIBS"
+      LIBS="$saved_LIBS -lxapian"
+      AC_LINK_IFELSE([AC_LANG_PROGRAM(
+        [[#include <xapian.h>]],
+        [[Xapian::Database db;]])],
+        [with_xapian=yes; XAPIAN_LIBS="-lxapian"],
+        [LIBS="$saved_LIBS"
+         AC_MSG_WARN([Xapian library not found — xapian searching unavailable])])
+      AC_LANG_POP([C++])
+    fi
+  ])
+
+  if test x$with_xapian = xyes; then
+    AM_CFLAGS="$AM_CFLAGS -DUSEXAPIAN $XAPIAN_CFLAGS"
+    AM_CXXFLAGS="$AM_CXXFLAGS -DUSEXAPIAN $XAPIAN_CFLAGS"
+    LIBS="$LIBS $XAPIAN_LIBS"
+    # Xapian supersedes CLucene; note this in the summary
+    if test "x$with_clucene" != xno; then
+      with_clucene="$with_clucene; but using XAPIAN instead"
+    fi
+  fi
 fi
 
-AC_CHECK_FUNCS(vsnprintf, [have_vsnprintf="yes"])
+AC_SUBST([XAPIAN_CFLAGS])
+AC_SUBST([XAPIAN_LIBS])
+
+# ---------------------------------------------------------------------
+# Miscellaneous function checks
+# ---------------------------------------------------------------------
+AC_CHECK_FUNCS([vsnprintf], [have_vsnprintf="yes"])
 
 # ---------------------------------------------------------------------
 # Alter global conf directory only if not /etc
 # ---------------------------------------------------------------------
-
 if test "x$sysconfdir" = "x/etc"; then
   dir_confdef="no"
 else
   dir_confdef="yes"
 fi
 
+# ---------------------------------------------------------------------
+# Version number decomposition
+# ---------------------------------------------------------------------
 changequote(<<,>>)
 V1=`expr $VERSION : '\([0-9]*\)\.[0-9]*\.*[0-9]*\.*[0-9]*'`
 V2=`expr $VERSION : '[0-9]*\.\([0-9]*\)\.*[0-9]*\.*[0-9]*'`
@@ -486,96 +652,87 @@ if test "$V3" -le 9 ; then V3=00$V3 ; elif test "$V3" -le 99 ; then V3=0$V3 ; fi
 if test "$V4" -le 9 ; then V4=00$V4 ; elif test "$V4" -le 99 ; then V4=0$V4 ; fi
 SWORD_VERSION_NUM=$V1$V2$V3$V4
 
-echo "checking compiler warnings"
+# ---------------------------------------------------------------------
+# Compiler warning suppression
+# ---------------------------------------------------------------------
+echo "Checking optional compiler warning flags..."
 m4_foreach(WARN_CHECK, [-Wno-address, -Wno-nonnull-compare],
 [
-	saved_CXXFLAGS="$CXXFLAGS"
-	CXXFLAGS="$CXXFLAGS WARN_CHECK"
-	AC_LANG_PUSH([C++])
-	AC_COMPILE_IFELSE([AC_LANG_PROGRAM([])],[WARNING_CHECK=WARN_CHECK],[WARNING_CHECK=;])
-	AC_LANG_POP([C++])
-	CXXFLAGS="$saved_CXXFLAGS"
-	echo "WARNING_CHECK: $WARNING_CHECK"
-	WARNINGS_OFF="$WARNINGS_OFF $WARNING_CHECK"
+  AX_CHECK_COMPILE_FLAG([WARN_CHECK], [WARNINGS_OFF="$WARNINGS_OFF WARN_CHECK"], [], [-Werror])
 ])
-
-echo "WARNINGS_OFF: $WARNINGS_OFF"
 AM_CXXFLAGS="$AM_CXXFLAGS $WARNINGS_OFF"
-
-
-AC_SUBST(SWORD_VERSION_NUM)
-AC_SUBST(SWORD_VERSION_STR)
-AC_SUBST(SWORD_VERSION_MAJOR)
-AC_SUBST(SWORD_VERSION_MINOR)
-AC_SUBST(SWORD_VERSION_MICRO)
-AC_SUBST(SWORD_VERSION_NANO)
-
-
 
 # ---------------------------------------------------------------------
 # Substitute variables into makefiles
 # ---------------------------------------------------------------------
-AC_SUBST(with_zlib)
-AC_SUBST(with_bzip2)
-AC_SUBST(with_xz)
-AC_SUBST(with_icu)
-AC_SUBST(with_icusword)
-AC_SUBST(with_conf)
-AC_SUBST(dir_confdef)
-AC_SUBST(CC)
-AC_SUBST(enable_debug)
-AC_SUBST(enable_profile)
+AC_SUBST([SWORD_VERSION_NUM])
+AC_SUBST([SWORD_VERSION_STR])
+AC_SUBST([SWORD_VERSION_MAJOR])
+AC_SUBST([SWORD_VERSION_MINOR])
+AC_SUBST([SWORD_VERSION_MICRO])
+AC_SUBST([SWORD_VERSION_NANO])
 
-AC_SUBST(AM_CXXFLAGS)
-AC_SUBST(AM_CFLAGS)
+AC_SUBST([with_zlib])
+AC_SUBST([with_bzip2])
+AC_SUBST([with_xz])
+AC_SUBST([with_icu])
+AC_SUBST([with_icusword])
+AC_SUBST([with_conf])
+AC_SUBST([dir_confdef])
+AC_SUBST([CC])
+AC_SUBST([enable_debug])
+AC_SUBST([enable_profile])
 
-AC_SUBST(target_cpu)
-AC_SUBST(target_vendor)
-AC_SUBST(target_os)
+AC_SUBST([AM_CXXFLAGS])
+AC_SUBST([AM_CFLAGS])
 
-AC_SUBST(target_system)
-AC_SUBST(target_mingw32)
+AC_SUBST([target_cpu])
+AC_SUBST([target_vendor])
+AC_SUBST([target_os])
+AC_SUBST([target_system])
+AC_SUBST([target_mingw32])
 
-AC_SUBST(CURL_LIBS)
-AC_SUBST(ICU_LIBS)
-AC_SUBST(ICU_IOLIBS)
-AC_SUBST(CLUCENE_LIBS)
-
+AC_SUBST([CURL_LIBS])
+AC_SUBST([ICU_LIBS])
+AC_SUBST([ICU_CFLAGS])
+AC_SUBST([ICU_IOLIBS])
+AC_SUBST([CLUCENE_LIBS])
 
 # ---------------------------------------------------------------------
 # Conditional variables
 # ---------------------------------------------------------------------
+AM_CONDITIONAL([HAVE_LIBZ],         [test x$with_zlib = xyes])
+AM_CONDITIONAL([HAVE_BZIP2],        [test x$with_bzip2 = xyes])
+AM_CONDITIONAL([HAVE_XZ],           [test x$with_xz = xyes])
+AM_CONDITIONAL([HAVE_ICU],          [test x$with_icu = xyes])
+AM_CONDITIONAL([HAVE_ICUSWORD],     [test x$with_icusword = xyes])
+AM_CONDITIONAL([HAVE_VSNPRINTF],    [test x$have_vsnprintf = xyes])
+AM_CONDITIONAL([USELUCENE],         [test "x$with_clucene" != xno])
+AM_CONDITIONAL([SHAREDLIB],         [test x$enable_shared = xyes])
+AM_CONDITIONAL([INSTCONF],          [test x$with_conf = xyes])
+AM_CONDITIONAL([USECXX11REGEX],     [test x$with_cxx11regex = xyes])
+AM_CONDITIONAL([USEICUREGEX],       [test x$with_icuregex = xyes])
+AM_CONDITIONAL([USECXX11TIME],      [test x$with_cxx11time = xyes])
+AM_CONDITIONAL([STRIPLOGD],         [test x$disable_logdebug = xyes])
+AM_CONDITIONAL([STRIPLOGI],         [test x$disable_loginfo = xyes])
+AM_CONDITIONAL([WITHCURL],          [test x$with_curl = xyes])
+AM_CONDITIONAL([WITHGAPI],          [test x$with_gapi = xyes])
+AM_CONDITIONAL([WITHCURLSFTP],      [test x$with_curl_sftp = xyes])
+AM_CONDITIONAL([INTERNALFTPLIB],    [test x$with_internalftplib = xyes])
+AM_CONDITIONAL([USE_INTERNAL_REGEX],[test x$with_internalregex = xyes])
+AM_CONDITIONAL([CONFDEF],           [test x$dir_confdef = xyes])
+AM_CONDITIONAL([BUILDTESTS],        [test x$enable_tests = xyes])
+AM_CONDITIONAL([BUILDUTILS],        [test x$enable_utilities = xyes])
+AM_CONDITIONAL([BUILDEXAMPLES],     [test x$enable_examples = xyes])
 
-AM_CONDITIONAL(HAVE_LIBZ, test x$with_zlib = xyes)
-AM_CONDITIONAL(HAVE_BZIP2, test x$with_bzip2 = xyes)
-AM_CONDITIONAL(HAVE_XZ, test x$with_xz = xyes)
-AM_CONDITIONAL(HAVE_ICU, test x$with_icu = xyes)
-AM_CONDITIONAL(HAVE_ICUSWORD, test x$with_icusword = xyes)
-AM_CONDITIONAL(HAVE_VSNPRINTF, test x$have_vsnprintf = xyes)
-
-AM_CONDITIONAL(USELUCENE, test "x$with_clucene" != xno)
-AM_CONDITIONAL(SHAREDLIB, test x$enable_shared = xyes)
-AM_CONDITIONAL(INSTCONF, test x$with_conf = xyes)
-AM_CONDITIONAL(USECXX11REGEX, test x$with_cxx11regex = xyes)
-AM_CONDITIONAL(USEICUREGEX, test x$with_icuregex = xyes)
-AM_CONDITIONAL(USECXX11TIME, test x$with_cxx11time = xyes)
-AM_CONDITIONAL(STRIPLOGD, test x$disable_logdebug = xyes)
-AM_CONDITIONAL(STRIPLOGI, test x$disable_loginfo = xyes)
-AM_CONDITIONAL(WITHCURL, test x$with_curl = xyes)
-AM_CONDITIONAL(WITHGAPI, test x$with_gapi = xyes)
-AM_CONDITIONAL(WITHCURLSFTP, test x$with_curl_sftp = xyes)
-AM_CONDITIONAL(INTERNALFTPLIB, test x$with_internalftplib = xyes)
-AM_CONDITIONAL(USE_INTERNAL_REGEX, test x$with_internalregex = xyes)
-AM_CONDITIONAL(CONFDEF, test x$dir_confdef = xyes)
-AM_CONDITIONAL(USE_PKGCONF, test x$use_pkgconfig = xyes)
-AM_CONDITIONAL(BUILDTESTS, test x$enable_tests = xyes)
-AM_CONDITIONAL(BUILDUTILS, test x$enable_utilities = xyes)
-AM_CONDITIONAL(BUILDEXAMPLES, test x$enable_examples = xyes)
+# USE_PKGCONF is kept for Makefile.am compatibility; always true when
+# PKG_CONFIG was found.
+AM_CONDITIONAL([USE_PKGCONF],       [test -n "$PKG_CONFIG"])
 
 # ---------------------------------------------------------------------
 # Final output
 # ---------------------------------------------------------------------
-AC_CONFIG_FILES(Makefile lib/Makefile tests/Makefile tests/testsuite/Makefile tests/cppunit/Makefile utilities/Makefile examples/Makefile examples/cmdline/Makefile utilities/diatheke/Makefile sword.pc include/swversion.h sword.spec)
+AC_CONFIG_FILES([Makefile lib/Makefile tests/Makefile tests/testsuite/Makefile tests/cppunit/Makefile utilities/Makefile examples/Makefile examples/cmdline/Makefile examples/tasks/Makefile utilities/diatheke/Makefile sword.pc include/swversion.h sword.spec])
 AC_OUTPUT
 
 echo

@@ -23,6 +23,11 @@ endif
 
 AM_CPPFLAGS += $(ICUDEF)
 
+libsword_la_LIBADD =
+if HAVE_XZ
+libsword_la_LIBADD += $(XZ_LIBS)
+endif
+
 libsword_la_LDFLAGS = -release $(VERSION)
 
 libsword_la_DEPENDENCIES = $(libsword_la_SOURCES)
@@ -35,6 +40,5 @@ include ../src/modules/Makefile.am
 #include ../bindings/Makefile.am
 #bindingsdir = $(top_srcdir)/bindings
 #libsword_la_SOURCES += $(bindingsdir)/flatapi.cpp
-#include ../include/Makefile.am
-
+include ../include/Makefile.am
 

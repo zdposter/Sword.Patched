@@ -37,8 +37,9 @@ jobs:
       if: runner.os == 'Linux'
 
     - name: '⬇️ Install dependencies on macOS'
-      env:
-          HOMEBREW_REQUIRE_TAP_TRUST: "1"
+        env:
+          HOMEBREW_NO_AUTO_UPDATE: "1"
+          HOMEBREW_NO_REQUIRE_TAP_TRUST: "1"
       run: |
            brew install autoconf automake libtool xapian bzip2
            brew install autoconf-archive

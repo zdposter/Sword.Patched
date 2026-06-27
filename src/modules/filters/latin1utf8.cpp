@@ -38,7 +38,7 @@ char Latin1UTF8::processText(SWBuf &text, const SWKey *key, const SWModule *modu
 {
     const unsigned char *from;
 
-	if ((unsigned long)key < 2)	// hack, we're en(1)/de(0)ciphering
+	if ((size_t)key < 2)	// hack, we're en(1)/de(0)ciphering
 		return (char)-1;
 
 	SWBuf orig = text;

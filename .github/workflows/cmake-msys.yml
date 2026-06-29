@@ -1,4 +1,4 @@
-name: CMake on MSYS2
+name:  MSYS2 CMake Build
 
 on:
   workflow_dispatch:

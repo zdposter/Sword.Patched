@@ -1,6 +1,8 @@
 [![License: GPL v2](https://img.shields.io/badge/License-GPL_v2-blue.svg)](https://github.com/zdenop/Sword.Patched/blob/master/LICENSE)
 [![Autotools build](https://github.com/zdposter/Sword.Patched/actions/workflows/autotools.yml/badge.svg)](https://github.com/zdposter/Sword.Patched/actions/workflows/autotools.yml)
 [![MSYS2 Autotools Build](https://github.com/zdposter/Sword.Patched/actions/workflows/msys2.yml/badge.svg)](https://github.com/zdposter/Sword.Patched/actions/workflows/msys2.yml)
+[![CMake on Linux & MacOS](https://github.com/zdposter/Sword.Patched/actions/workflows/cmake-multi-platform.yml/badge.svg)](https://github.com/zdposter/Sword.Patched/actions/workflows/cmake-multi-platform.yml)
+[![MSYS2 CMake Build](https://github.com/zdposter/Sword.Patched/actions/workflows/cmake-msys.yml/badge.svg)](https://github.com/zdposter/Sword.Patched/actions/workflows/cmake-msys.yml)
 
 # Sword.Patched
 

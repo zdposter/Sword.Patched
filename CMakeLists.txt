@@ -21,6 +21,8 @@ IF(${CMAKE_CURRENT_BINARY_DIR} STREQUAL ${CMAKE_CURRENT_SOURCE_DIR})
 	MESSAGE(FATAL_ERROR "Please invoke CMake from a different directory than the source.")
 ENDIF(${CMAKE_CURRENT_BINARY_DIR} STREQUAL ${CMAKE_CURRENT_SOURCE_DIR})
 
+option(SWORD_ENABLE_CPPCHECK "Enable cppcheck targets" OFF)
+
 MESSAGE(STATUS "Configuring your system to build libsword.")
 
 ###########################################################################################
@@ -81,9 +83,11 @@ INCLUDE(${CMAKE_CURRENT_SOURCE_DIR}/cmake/muxsources.cmake)
 SET(CPPCHECK_POSSIBLEERROR_ARG "--enable=all")
 IF(LIBSWORD_LIBRARY_TYPE MATCHES ".*Shared.*" OR NOT LIBSWORD_LIBRARY_TYPE)
 	ADD_LIBRARY(sword SHARED ${sword_SOURCES})
-    ADD_CPPCHECK(sword
-        POSSIBLE_ERROR TRUE
-        FORCE TRUE)
+    if(SWORD_ENABLE_CPPCHECK)
+	    ADD_CPPCHECK(sword
+	        POSSIBLE_ERROR TRUE
+	        FORCE TRUE)
+	endif()
 	MESSAGE(STATUS "Building Shared library.")
 	SET(BUILDING_SHARED 1)
 	SET(SWORD_LINK_NAME sword)

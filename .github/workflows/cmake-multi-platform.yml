@@ -1,0 +1,77 @@
+name: CMake on Linux & MacOS
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: ${{ matrix.config.name }}
+    runs-on: ${{ matrix.config.os }}
+
+    strategy:
+      # Set fail-fast to false to ensure that feedback is delivered for all matrix combinations. Consider changing this to true when your workflow is stable.
+      fail-fast: false
+      matrix:
+        config:
+          - { name: '🐧 ubuntu-latest-gcc', os:  ubuntu-latest, cxx: g++, c_compiler: gcc }
+          - { name: '🍎 macos-latest-clang', os: macos-latest, cxx: clang++, c_compiler: clang }
+        build_type: [Release]
+
+    steps:
+    - uses: actions/checkout@v7
+
+    - name: Set reusable strings
+      # Turn repeated input strings (such as the build output directory) into step outputs. These step outputs can be used throughout the workflow file.
+      id: strings
+      shell: bash
+      run: |
+        echo "build-output-dir=${{ github.workspace }}/build" >> "$GITHUB_OUTPUT"
+
+    - name: '⬇️ Install dependencies on macOS'
+      if: runner.os == 'macOS'
+      env:
+          HOMEBREW_NO_AUTO_UPDATE: "1"
+          HOMEBREW_NO_REQUIRE_TAP_TRUST: "1"
+      run: |
+           brew install autoconf automake libtool xapian bzip2
+           brew install autoconf-archive
+           brew reinstall xz
+           brew reinstall icu4c
+           if ! brew list curl &>/dev/null; then
+             brew install curl
+           fi
+           ln -s $(which glibtoolize) /usr/local/bin/libtoolize
+
+
+    - name: '⬇️ Install dependencies on Linux'
+      if: runner.os == 'Linux'
+      run: |
+           sudo apt-get update
+           sudo apt-get install ninja-build -y
+           sudo apt-get install subversion  # get rid of this
+           sudo apt-get install libbz2-dev xz-utils liblzma-dev
+           sudo apt-get install libcurl4-openssl-dev libcurl4 curl -y
+           sudo apt-get install libclucene-core1t64 libclucene-contribs1t64 libclucene-dev libxapian-dev  # clucene Not found!
+           sudo apt-get install python3
+           # sudo apt-get install cppcheck  # test will faild
+
+
+    - name: '🔧 Configure CMake'
+      run: >
+        cmake -B ${{ steps.strings.outputs.build-output-dir }}
+        -DCMAKE_CXX_COMPILER=${{ matrix.config.cxx }}
+        -DCMAKE_C_COMPILER=${{matrix.config.c_compiler }}
+        -DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
+        -S ${{ github.workspace }}
+        -DSWORD_BUILD_EXAMPLES=Yes
+        -DSWORD_BUILD_UTILS=Yes
+        -DSWORD_SWIG_BINDINGS=Yes
+        -DSWORD_BUILD_TESTS=Yes
+        # TODO use standard ON/OFF
+
+    - name: '🚧 Build and install'
+      run: sudo cmake --build ${{ steps.strings.outputs.build-output-dir }} --config ${{ matrix.build_type }} --target install
+
+    - name:  '💔 Test'
+      working-directory: ${{ steps.strings.outputs.build-output-dir }}
+      run: ctest --build-config ${{ matrix.build_type }}

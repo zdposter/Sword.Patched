@@ -1,6 +1,6 @@
 /* zconf.h -- configuration of the zlib compression library
  * Copyright (C) 1995-2002 Jean-loup Gailly.
- * For conditions of distribution and use, see copyright notice in zlib.h 
+ * For conditions of distribution and use, see copyright notice in zlib.h
  */
 
 /* @(#) $Id$ */
@@ -48,10 +48,7 @@
 #  define voidp		z_voidp
 #endif
 
-#if (defined(_WIN32) || defined(__WIN32__)) && !defined(WIN32)
-#  define WIN32
-#endif
-#if defined(__GNUC__) || defined(WIN32) || defined(__386__) || defined(i386)
+#if defined(__GNUC__) || defined(_WIN32) || defined(__386__) || defined(i386)
 #  ifndef __32BIT__
 #    define __32BIT__
 #  endif
@@ -71,7 +68,7 @@
 #  define UNALIGNED_OK
 #endif
 
-#if (defined(MSDOS) || defined(_WINDOWS) || defined(WIN32))  && !defined(STDC)
+#if (defined(MSDOS) || defined(_WINDOWS) || defined(_WIN32))  && !defined(STDC)
 #  define STDC
 #endif
 #if defined(__STDC__) || defined(__cplusplus) || defined(__OS2__)
@@ -168,14 +165,14 @@
 #    endif
 #    include <windows.h>
 #    define ZEXPORT  WINAPI
-#    ifdef WIN32
+#    ifdef _WIN32
 #      define ZEXPORTVA  WINAPIV
 #    else
 #      define ZEXPORTVA  FAR _cdecl _export
 #    endif
 #  endif
 #  if defined (__BORLANDC__)
-#    if (__BORLANDC__ >= 0x0500) && defined (WIN32)
+#    if (__BORLANDC__ >= 0x0500) && defined (_WIN32)
 #      include <windows.h>
 #      define ZEXPORT __declspec(dllexport) WINAPI
 #      define ZEXPORTRVA __declspec(dllexport) WINAPIV

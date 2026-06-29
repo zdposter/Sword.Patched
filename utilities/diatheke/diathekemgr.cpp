@@ -29,7 +29,7 @@
 #include <utf8transliterator.h>
 #endif
 
-#ifdef WIN32
+#ifdef _WIN32
 #include <windows.h>
 #endif
 
@@ -49,7 +49,7 @@ DiathekeMgr::DiathekeMgr (SWConfig * iconfig, SWConfig * isysconfig, bool autolo
 #endif
 	load();
 
-#ifdef WIN32
+#ifdef _WIN32
 	OSVERSIONINFO osvi;
 	memset (&osvi, 0, sizeof(OSVERSIONINFO));
 	osvi.dwOSVersionInfoSize = sizeof(OSVERSIONINFO);
@@ -110,4 +110,3 @@ void DiathekeMgr::addGlobalOptionFilters(SWModule *module, ConfigEntMap &section
         module->addOptionFilter(transliterator);
 #endif
 };
-

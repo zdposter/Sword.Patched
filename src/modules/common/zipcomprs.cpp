@@ -2,7 +2,7 @@
  *
  *  zipcomprs.cpp -	ZipCompress, a driver class that provides zlib
  *			compression
- *				
+ *
  * $Id$
  *
  * Copyright 2000-2014 CrossWire Bible Society (http://www.crosswire.org)
@@ -29,7 +29,7 @@
 #include <zipcomprs.h>
 #include <zlib.h>
 #include <utilstr.h>
-#ifndef WIN32
+#ifndef _WIN32
 #include <utime.h>
 #else
 #include <windows.h>
@@ -180,7 +180,7 @@ int untar(gzFile in, const char *dest) {
 					// All this logic is simply the set the file timestamp
 					// ugh
 					sword::FileMgr::closeFile(outFD);
-#ifdef WIN32
+#ifdef _WIN32
 					HANDLE hFile;
 					FILETIME ftm,ftLocal;
 					SYSTEMTIME st;
@@ -351,7 +351,7 @@ ZEXTERN int ZEXPORT uncompress OF((Bytef *dest,   uLongf *destLen,
 	//SWLog::getSystemLog()->logInfo("Decoding complength{%ld} uncomp{%ld}\n", zlen, blen);
 	if (zlen) {
 		unsigned long blen = zlen*20;	// trust compression is less than 1000%
-		char *buf = new char[blen]; 
+		char *buf = new char[blen];
 		//SWLog::getSystemLog()->logInfo("Doing decompress {%s}\n", zbuf);
 		slen = 0;
 		switch (uncompress((Bytef*)buf, &blen, (Bytef*)zbuf, zlen)){

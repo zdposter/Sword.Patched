@@ -11,7 +11,7 @@
 #include <ctype.h>
 #include <limits.h>
 #include <sys/types.h>
-#ifndef WIN32
+#ifndef _WIN32
 #include <netinet/tcp.h>	/* for TCP_NODELAY */
 #include <arpa/inet.h>
 #endif
@@ -38,7 +38,7 @@ extern struct soap_double_nan { int n1, n2; } soap_double_nan;
 #ifndef STDSOAP
 #define STDSOAP
 
-#ifndef WIN32
+#ifndef _WIN32
 #define LONG64 long long
 #define ULONG64 unsigned long long
 #endif
@@ -144,7 +144,7 @@ extern const char *soap_dhfile;
 extern const char *soap_cafile;
 #endif
 
-#ifdef WIN32
+#ifdef _WIN32
 #include <io.h>
 #include <winsock.h>
 #else
@@ -239,7 +239,7 @@ extern int soap_error ;
 }
 #else
 #define DBGLOG(DBGFILE, DBGCMD)
-#endif  
+#endif
 
 struct soap_class
 { void *ptr;
@@ -304,7 +304,7 @@ int	soap_getline(char *, int);
 
 void	soap_send_namespaces();
 
-#ifdef WIN32
+#ifdef _WIN32
 #define atoll atoi
 #else
 extern void itoa(int, char*);
@@ -314,12 +314,12 @@ extern void itoa(int, char*);
 struct soap_hash_entry
 { int type;
   size_t size;
-  void *link; 
-  void *copy; 
-  void *ptr; 
-  int level; 
+  void *link;
+  void *copy;
+  void *ptr;
+  int level;
   struct soap_hash_entry *next;
-  char s[4]; 
+  char s[4];
 };
 
 extern struct soap_hash_entry *soap_hash[SOAP_IDHASH];
@@ -350,7 +350,7 @@ extern char * soap_putsizes(const char *, const int *, int);
 extern char * soap_putoffset(int);
 extern char * soap_putoffsets(const int *, int);
 extern char * soap_putposition();
- 
+
 extern int soap_peeked ;
 extern int soap_body;
 

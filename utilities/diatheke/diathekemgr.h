@@ -33,7 +33,7 @@ class DiathekeMgr : public SWMgr {
 	SWFilter *bidireorder;
     SWOptionFilter *transliterator;
 
-#ifdef WIN32
+#ifdef _WIN32
 	char platformID;
 #endif
 
@@ -55,4 +55,3 @@ public:
 };
 
 #endif
- 

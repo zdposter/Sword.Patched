@@ -33,17 +33,14 @@
 #include <string.h>
 #include <swbuf.h>
 
-#if defined(_WIN32) && !defined(WIN32)
-#define WIN32
-#endif
 
-#if (defined(WIN32) && !defined(_WIN32_WCE)) || !defined(__GNUC__)
+#if (defined(_WIN32) && !defined(_WIN32_WCE)) || !defined(__GNUC__)
 #include <io.h>
 #include <direct.h>
 #else
 #include <unistd.h>
 #endif
-#ifdef WIN32
+#ifdef _WIN32
 #include <wchar.h>
 #include <windows.h>
 #endif
@@ -320,7 +317,7 @@ signed char FileMgr::trunc(FileDesc *file) {
 
 SWBuf FileMgr::getEnvValue(const char *variableName) {
 	return
-#ifdef WIN32
+#ifdef _WIN32
 		wcharToUTF8(_wgetenv((const wchar_t *)utf8ToWChar(variableName).getRawData()));
 #else
 		getenv(variableName);
@@ -331,7 +328,7 @@ SWBuf FileMgr::getEnvValue(const char *variableName) {
 
 bool FileMgr::hasAccess(const char *path, int mode) {
 	return
-#ifdef WIN32
+#ifdef _WIN32
 		!_waccess((const wchar_t *)utf8ToWChar(path).getRawData(), mode);
 #else
 		!access(path, mode);
@@ -386,7 +383,7 @@ std::vector<struct DirEntry> FileMgr::getDirList(const char *dirPath, bool inclu
 	SWBuf basePath = dirPath;
 	if (!basePath.endsWith("/") && !basePath.endsWith("\\")) basePath += "/";
 
-#ifndef WIN32
+#ifndef _WIN32
 	DIR *dir;
 	struct dirent *ent;
 	if ((dir = opendir(dirPath))) {
@@ -443,7 +440,7 @@ int FileMgr::createParent(const char *pName) {
 	if (strlen(buf)>0) {
 		if (!hasAccess(buf, 02)) {  // not exists with write access?
 			retCode =
-#ifndef WIN32
+#ifndef _WIN32
 				mkdir(buf, 0755);
 #else
 				_wmkdir((const wchar_t *)utf8ToWChar(buf).getRawData());
@@ -451,7 +448,7 @@ int FileMgr::createParent(const char *pName) {
 			if (retCode) {
 				createParent(buf);
 				retCode =
-#ifndef WIN32
+#ifndef _WIN32
 					mkdir(buf, 0755);
 #else
 					_wmkdir((const wchar_t *)utf8ToWChar(buf).getRawData());
@@ -467,7 +464,7 @@ int FileMgr::createParent(const char *pName) {
 
 int FileMgr::openFile(const char *fName, int mode, int perms) {
 	int fd =
-#ifndef WIN32
+#ifndef _WIN32
 		::open(fName, mode, perms);
 #else
 		::_wopen((const wchar_t *)utf8ToWChar(fName).getRawData(), mode, perms);
@@ -521,7 +518,7 @@ int FileMgr::copyFile(const char *sourceFile, const char *targetFile) {
 
 int FileMgr::removeFile(const char *fName) {
 	return
-#ifndef WIN32
+#ifndef _WIN32
 	::remove(fName);
 #else
 	::_wremove((const wchar_t *)utf8ToWChar(fName).getRawData());
@@ -602,13 +599,13 @@ SWBuf FileMgr::loadFile(FileDesc *fDesc, bool strip, bool skipCommentLines) {
 
 	bool goodLine = FileMgr::getLine(fDesc, line, strip);
 	// clean UTF encoding tags at start of file
-	while (goodLine && line.length() && 
+	while (goodLine && line.length() &&
 			((((unsigned char)line[0]) == 0xEF) ||
 			 (((unsigned char)line[0]) == 0xBB) ||
 			 (((unsigned char)line[0]) == 0xBF))) {
 		line << 1;
 	}
-		
+
 	while (goodLine) {
 		// ignore commented lines
 		if (!skipCommentLines || !line.startsWith("#")) {
@@ -621,7 +618,7 @@ SWBuf FileMgr::loadFile(FileDesc *fDesc, bool strip, bool skipCommentLines) {
 
 
 char FileMgr::isDirectory(const char *path) {
-#ifndef WIN32
+#ifndef _WIN32
 	struct stat stats;
 	int error = stat(path, &stats);
 #else
@@ -634,7 +631,7 @@ char FileMgr::isDirectory(const char *path) {
 
 
 long FileMgr::getFileSize(const char *path) {
-#ifndef WIN32
+#ifndef _WIN32
 	struct stat stats;
 	int error = stat(path, &stats);
 #else
